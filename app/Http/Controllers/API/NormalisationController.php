@@ -1,7 +1,12 @@
 <?php
 
 namespace App\Http\Controllers\API;
+use App\Exports\ArrayExport;
+use App\Exports\NormalisationExport;
 use App\Http\Controllers\Controller;
+use App\Models\Codification;
+use App\Models\Consigne;
+use App\Services\ConsigneExecutor;
 use App\Services\TabFilterService;
 use App\Services\TextNormalizerService;
 use Illuminate\Database\Schema\Blueprint;
@@ -9,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Services\AccessService;
 use Illuminate\Support\Facades\Schema;
+use Maatwebsite\Excel\Facades\Excel;
 use PDO;
 
 
@@ -40,12 +46,25 @@ class NormalisationController extends Controller
         dump($rows);
     }
 
-    public function importParametre()
-    {
 
-        $pdo = AccessService::connect("D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\Normalisation\parametre.mdb",null,null);
+    public function importParametre(Request $request)
+    {
+        /************************************ */
+        $zDossier = $request->nom_dossier ?? "";
+        $zCode_dossier = $request->nom_code_dossier ?? "";
+
+        $basePath = config('normalisation.base_path');
+        $zCheminParametreMdb = $basePath
+            . DIRECTORY_SEPARATOR . $zDossier
+            . DIRECTORY_SEPARATOR . $zCode_dossier
+            . DIRECTORY_SEPARATOR . 'Parametre.mdb';
+
+        /************************************ */
+      //  $pdo = AccessService::connect("D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\Normalisation\parametre.mdb",null,null);
+          $pdo = AccessService::connect($zCheminParametreMdb,null,null);
 
         $sourceRows = $pdo->query(" SELECT idq,defaut FROM SOURCE")->fetchAll(PDO::FETCH_ASSOC);
+        //dd($sourceRows);
         $tableName = 'source';
         Schema::dropIfExists($tableName);
 
@@ -129,11 +148,23 @@ class NormalisationController extends Controller
         return $files;
     }
 
-    public function importMdb()
+    public function importMdb(Request $request)
     {
 
+        /************************************ */
+        $zDossier = $request->nom_dossier ?? "";
+        $zCode_dossier = $request->nom_code_dossier ?? "";
+
+        $basePath = config('normalisation.base_path');
+        $cheminLot = $basePath
+            . DIRECTORY_SEPARATOR . $zDossier
+            . DIRECTORY_SEPARATOR . $zCode_dossier
+            . DIRECTORY_SEPARATOR . 'SOURCE';
+          //  dd($cheminLot);
+        /************************************ */
+
         $livraisonPath = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\Normalisation\livraison.mdb'; // livraison.mdb
-        $cheminLot = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\LOTS';              // chemin parent des LOTS
+      //  $cheminLot = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\LOTS';              // chemin parent des LOTS
 
 
         /*************************LECTURE DU FICHIER PARAMETRE.CAT ET RESUPERATION DE L'EXTENSION***************************** */
@@ -148,9 +179,11 @@ class NormalisationController extends Controller
 
         /*************************************************************************** */
         /************ Connexion PDO vers livraison.mdb puis vider la table source****************************** */
-        $cnn =  AccessService::connect($livraisonPath,null,null);
+          $cnn =  AccessService::connect($livraisonPath,null,null);
 
-        $resdelete = $cnn->exec("DELETE FROM SOURCE"); // vide la table
+        /**$resdelete = $cnn->exec("DELETE FROM SOURCE"); // vide la table*/
+
+        DB::table('source')->truncate();
         /***********************************TRANFORMATION DE CERTAINS CLES ET FORMATAGE**************************************** */
         $tMap = [
             "Fichier" => "N_LOT",
@@ -301,6 +334,79 @@ class NormalisationController extends Controller
             $result[$newKey] = $value;
         }
         return $result;
+    }
+
+    public function normaliser($codification_id)
+    {
+        // Récupère toutes les consignes avec leurs groupes et champs
+        $consignes = Consigne::with([
+            'groupes.champs.champ',
+            'parametres'
+        ])
+            ->whereHas('groupes.champs', function ($q) use ($codification_id) {
+                $q->whereHas('champ', function ($qc) use ($codification_id) {
+                    $qc->where('codification_id', $codification_id);
+                });
+            })
+            ->get();
+
+        //   dd($consignes);
+        $executor = new ConsigneExecutor();
+
+        // Récupère toutes les lignes de la table source
+        $lignes = DB::table('source')->get();
+
+        $rowsForExport = [];
+
+        foreach ($lignes as $ligne) {
+            $data = (array) $ligne;
+
+            // Boucle sur chaque consigne
+            foreach ($consignes as $consigne) {
+
+                // Récupère le handler correspondant
+                $handler = $executor->getHandler($consigne->code);
+
+                // Boucle sur chaque groupe de la consigne
+                foreach ($consigne->groupes as $groupe) {
+
+                    // Récupère les noms de champs du groupe dans le bon ordre
+                    $champs = $groupe->champs
+                        ->map(fn($gc) => strtolower($gc->champ->nom_champ))
+                        ->toArray();
+                   //     dd($champs);
+                    // Récupère les paramètres de la consigne
+                    $parametres = $consigne->parametres->pluck('valeur', 'cle')->toArray();
+
+                    // Applique la consigne sur ce groupe de champs
+
+
+                    $data = $handler->appliquer($data, $champs, $parametres);
+
+                }
+            }
+
+            $rowsForExport[] = $data;
+
+        }
+        /**************************RECUPERATION DE CODE DOSSIER*********************************** */
+        $codification = Codification::findOrFail($codification_id);
+        $codeDossier = $codification->code_dossier;
+
+        $filePath = 'Exports/'.$codeDossier . '.xlsx';
+        /************************************************************* */
+
+
+        Excel::store(new NormalisationExport($rowsForExport), $filePath, 'local');
+        return response()->json([
+            'status' => 'OK',
+            'message' => 'Fichier Excel généré',
+            'path' => storage_path('app/' . $filePath)
+        ]);
+       /** return Excel::download(
+            new NormalisationExport($rowsForExport),
+            'resultat_normalisation.xlsx'
+        );*/
     }
 
 }

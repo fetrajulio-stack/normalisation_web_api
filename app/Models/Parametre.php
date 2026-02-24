@@ -5,11 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class User extends Model
+class Parametre extends Model
 {
     use HasFactory;
-    public function profil()
+
+    public function codification()
     {
-        return $this->belongsTo(Profil::class);
+        return $this->belongsTo(Codification::class);
     }
 }
