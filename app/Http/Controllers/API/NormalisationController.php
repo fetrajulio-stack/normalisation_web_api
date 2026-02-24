@@ -60,11 +60,9 @@ class NormalisationController extends Controller
             . DIRECTORY_SEPARATOR . 'Parametre.mdb';
 
         /************************************ */
-      //  $pdo = AccessService::connect("D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\Normalisation\parametre.mdb",null,null);
-          $pdo = AccessService::connect($zCheminParametreMdb,null,null);
-
-        $sourceRows = $pdo->query(" SELECT idq,defaut FROM SOURCE")->fetchAll(PDO::FETCH_ASSOC);
-        //dd($sourceRows);
+        //$pdo = AccessService::connect("D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\parametre.mdb",null,null);
+        $pdo = AccessService::connect($zCheminParametreMdb,null,null);
+        $sourceRows = $pdo->query(" SELECT idq FROM SOURCE")->fetchAll(PDO::FETCH_ASSOC);
         $tableName = 'source';
         Schema::dropIfExists($tableName);
 
@@ -77,7 +75,7 @@ class NormalisationController extends Controller
                 $text_utf8 = mb_convert_encoding( $row['idq'] , 'UTF-8', 'Windows-1252');
 
                 $colName = $this->normalizer->normalizeFieldName($text_utf8);
-                 $default = $row['defaut'];
+                 $default = isset($row['defaut']) ? $row['defaut'] : "";
                 if (is_numeric($default)) {
                     $table->integer($colName)->default($default);
                 } else {
