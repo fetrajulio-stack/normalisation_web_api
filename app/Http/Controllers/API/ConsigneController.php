@@ -221,7 +221,7 @@ class ConsigneController extends Controller
 
         $pdo = AccessService::connect($zCheminParametreMdb,null,null);
 
-        $sourceRows = $pdo->query(" SELECT idq,defaut FROM SOURCE")->fetchAll(PDO::FETCH_ASSOC);
+        $sourceRows = $pdo->query(" SELECT idq FROM SOURCE")->fetchAll(PDO::FETCH_ASSOC);
 
         $sourceRows = $this->encodingService->utf8EncodeRecursive($sourceRows);
 
