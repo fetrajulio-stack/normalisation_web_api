@@ -4,6 +4,7 @@ use App\Http\Controllers\API\ConsigneController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\NormalisationController;
+use App\Http\Controllers\API\CodificationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -28,9 +29,16 @@ Route::get('/authtest', [\App\Http\Controllers\API\TestController::class, 'testP
 
 Route::get('/list-codifications', [\App\Http\Controllers\API\CodificationController::class, 'listCodification']);
 Route::get('/list-champs', [\App\Http\Controllers\API\CodificationController::class, 'getChampsByCodeDossier']);
+
+Route::get('/codifications', [\App\Http\Controllers\API\CodificationController::class, 'getId']);
+
 Route::post('/normalisation/{codification_id}', [\App\Http\Controllers\API\NormalisationController::class, 'normaliser']);
 Route::post('/consignes/parametrage/add', [ConsigneController::class, 'store']);
 Route::get('/consignes/list', [ConsigneController::class, 'listAll']);
+
 Route::get('/consignes/parametrage/{codificationId}', [ConsigneController::class, 'edit']);
-Route::post('/consignes/parametrage/update/{codificationId}', [ConsigneController::class, 'update']);
+
+Route::put('/consignes/parametrage/update/{codificationId}', [ConsigneController::class, 'update']);
+
+
 

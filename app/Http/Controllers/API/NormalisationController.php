@@ -401,16 +401,20 @@ class NormalisationController extends Controller
         /************************************************************* */
 
 
-        Excel::store(new NormalisationExport($rowsForExport), $filePath, 'local');
+       Excel::store(new NormalisationExport($rowsForExport), $filePath, 'public');
+
         return response()->json([
             'status' => 'OK',
             'message' => 'Fichier Excel généré',
+            'url' => asset('storage/'.$filePath),
             'path' => storage_path('app/' . $filePath)
         ]);
-       /** return Excel::download(
+
+        /**return Excel::download(
             new NormalisationExport($rowsForExport),
-            'resultat_normalisation.xlsx'
+            $codeDossier . '.xlsx'
         );*/
+
     }
 
 }
