@@ -16,7 +16,15 @@ class AccessService
     {
         $connStr = "Driver={Microsoft Access Driver (*.mdb, *.accdb)};Dbq=$path;";
 
-        $conn = odbc_connect($connStr, '', $password);
+       // $conn = odbc_connect($connStr, '', $password);
+
+        $conn = odbc_connect(
+            $connStr .
+            "Dbq=$path;" .
+            "PWD=$password;",
+            '',
+            ''
+        );
 
         if (!$conn) {
             throw new \Exception(odbc_errormsg());

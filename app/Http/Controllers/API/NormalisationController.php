@@ -60,11 +60,9 @@ class NormalisationController extends Controller
             . DIRECTORY_SEPARATOR . 'Parametre.mdb';
 
         /************************************ */
-      //  $pdo = AccessService::connect("D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\Normalisation\parametre.mdb",null,null);
-          $pdo = AccessService::connect($zCheminParametreMdb,null,null);
-
-        $sourceRows = $pdo->query(" SELECT idq,defaut FROM SOURCE")->fetchAll(PDO::FETCH_ASSOC);
-        //dd($sourceRows);
+        //$pdo = AccessService::connect("D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\parametre.mdb",null,null);
+        $pdo = AccessService::connect($zCheminParametreMdb,null,null);
+        $sourceRows = $pdo->query(" SELECT idq FROM SOURCE")->fetchAll(PDO::FETCH_ASSOC);
         $tableName = 'source';
         Schema::dropIfExists($tableName);
 
@@ -77,7 +75,7 @@ class NormalisationController extends Controller
                 $text_utf8 = mb_convert_encoding( $row['idq'] , 'UTF-8', 'Windows-1252');
 
                 $colName = $this->normalizer->normalizeFieldName($text_utf8);
-                 $default = $row['defaut'];
+                 $default = isset($row['defaut']) ? $row['defaut'] : "";
                 if (is_numeric($default)) {
                     $table->integer($colName)->default($default);
                 } else {
@@ -166,13 +164,16 @@ class NormalisationController extends Controller
         $livraisonPath = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\Normalisation\livraison.mdb'; // livraison.mdb
       //  $cheminLot = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\LOTS';              // chemin parent des LOTS
 
+        //D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\SOURCE
 
         /*************************LECTURE DU FICHIER PARAMETRE.CAT ET RESUPERATION DE L'EXTENSION***************************** */
-        $ini = parse_ini_file('D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\Normalisation\Parametre.cat', true);
+        $ini = parse_ini_file('D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\Parametre.cat', true);
         // récupère la valeur de normalisation dans parametre.cat
         $extention = $ini['parametre']['normalisation'] ?? null; // affichera "VO"
         // récupère la valeur de passe dans parametre.cat
         $passsword = $ini['parametre']['passe'] ?? null; // affichera "VO"
+
+
 
         /*************************RECUPERATION DES LOTS***************************** */
         $listLots = $this->listLots($cheminLot);
@@ -193,11 +194,11 @@ class NormalisationController extends Controller
         $regleFormat = [
             "N_ENR" => fn($v) => sprintf('%04d', (int)$v),
         ];
+
         foreach ($listLots as $lotPath) {
-
-
             // Parcours récursif des fichiers MDB .OK.MDB
             $mdbFiles = $this->getOkMdbFile($lotPath, $extention);
+
 
             foreach ($mdbFiles as $filePath) {
                // $cnnS = $this->connectAccess($filePath); // fichier de saisie
@@ -207,16 +208,18 @@ class NormalisationController extends Controller
                     $passsword
                 );
 
+                /**$cnnS = AccessService::connect($filePath,null,null);*/
                 // Lecture de la table TRAVAIL
-                $sqlTravail = "SELECT * FROM Travail ORDER BY TIFF, XORDRE";
+               $sqlTravail = "SELECT * FROM Travail ORDER BY TIFF, XORDRE";
+               // $rs = $cnnS->query(" SELECT * FROM Travail ORDER BY TIFF, XORDRE")->fetchAll(PDO::FETCH_ASSOC);
                 $rs = odbc_exec($cnnS, $sqlTravail);
+
                 ////$rows = odbc_fetch_array($rs);
                 $tMysqlSourceFields = SELF::getMysqlSourceFields();
 
                 $batch = [];
                    //// dump($rows);
          while ($rows = odbc_fetch_array($rs)) {
-
                     $filtered = $this->tabFilter->filterAndNormalize(
                         self::getNewDataFormat($rows,$regleFormat,$tMap),
                         $tMysqlSourceFields
@@ -389,6 +392,7 @@ class NormalisationController extends Controller
             $rowsForExport[] = $data;
 
         }
+
         /**************************RECUPERATION DE CODE DOSSIER*********************************** */
         $codification = Codification::findOrFail($codification_id);
         $codeDossier = $codification->code_dossier;
@@ -397,16 +401,20 @@ class NormalisationController extends Controller
         /************************************************************* */
 
 
-        Excel::store(new NormalisationExport($rowsForExport), $filePath, 'local');
+       Excel::store(new NormalisationExport($rowsForExport), $filePath, 'public');
+
         return response()->json([
             'status' => 'OK',
             'message' => 'Fichier Excel généré',
+            'url' => asset('storage/'.$filePath),
             'path' => storage_path('app/' . $filePath)
         ]);
-       /** return Excel::download(
+
+        /**return Excel::download(
             new NormalisationExport($rowsForExport),
-            'resultat_normalisation.xlsx'
+            $codeDossier . '.xlsx'
         );*/
+
     }
 
 }

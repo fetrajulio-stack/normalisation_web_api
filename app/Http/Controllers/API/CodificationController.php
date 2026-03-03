@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\Champ;
+use App\Models\Codification;
 use App\Services\AccessService;
 use App\Services\TabFilterService;
 use App\Services\TextNormalizerService;
@@ -70,7 +71,7 @@ class CodificationController extends Controller
         //$pdo = AccessService::connect("D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\Normalisation\parametre.mdb",null,null);
           $pdo = AccessService::connect($zCheminParametreMdb,null,null);
 
-        $sourceRows = $pdo->query(" SELECT idq,defaut FROM SOURCE")->fetchAll(PDO::FETCH_ASSOC);
+        $sourceRows = $pdo->query(" SELECT idq FROM SOURCE")->fetchAll(PDO::FETCH_ASSOC);
 
         $sourceRows = $this->encodingService->utf8EncodeRecursive($sourceRows);
 
@@ -81,8 +82,27 @@ class CodificationController extends Controller
     }
 
 
+    public function getId(Request $request)
+    {
+        $request->validate([
+            'nom_dossier'  => 'required|string',
+            'code_dossier' => 'required|string',
+        ]);
 
+        $codification = Codification::where('dossier', $request->nom_dossier)
+            ->where('code_dossier', $request->code_dossier)
+            ->first();
 
+        if (!$codification) {
+            return response()->json([
+                'message' => 'Codification non trouvée'
+            ], 404);
+        }
+
+        return response()->json([
+            'id' => $codification->id
+        ]);
+    }
 
 
 }

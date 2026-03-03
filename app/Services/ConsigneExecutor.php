@@ -1,6 +1,7 @@
 <?php
 namespace App\Services;
 
+use App\Services\Consignes\CompacterConsigne;
 use App\Services\Consignes\ConcatenationConsigne;
 use App\Services\Consignes\FillemptyConsigne;
 use App\Services\Consignes\LowercaseConsigne;
@@ -16,9 +17,10 @@ class ConsigneExecutor
     {
         return match ($code) {
             'LOWERCASE' => new LowercaseConsigne(),
+            'UPPERCASE' => new UppercaseConsigne(),
             'FILL_EMPTY' => new FillemptyConsigne(),
             'CONCATENATE' => new ConcatenationConsigne(),
-            'COMPACTER' => new CompactageConsigne(),
+            'COMPACTER' => new CompacterConsigne(),
             'PREFIX' => new PrefixConsigne(),
             'SI_VIDE_ALORS' => new SiVideAlorsConsigne(),
             'SI_AUTRE_CHAMP_RENSEIGNE' => new SiAutreChampRenseigneConsigne(),

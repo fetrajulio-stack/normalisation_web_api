@@ -221,7 +221,7 @@ class ConsigneController extends Controller
 
         $pdo = AccessService::connect($zCheminParametreMdb,null,null);
 
-        $sourceRows = $pdo->query(" SELECT idq,defaut FROM SOURCE")->fetchAll(PDO::FETCH_ASSOC);
+        $sourceRows = $pdo->query(" SELECT idq FROM SOURCE")->fetchAll(PDO::FETCH_ASSOC);
 
         $sourceRows = $this->encodingService->utf8EncodeRecursive($sourceRows);
 
@@ -325,7 +325,15 @@ class ConsigneController extends Controller
         Parametre_consigne::where('codification_id', $codificationId)->delete();
 
         // 2️⃣ Réinsérer comme une création
-        foreach ($request->parametrage as $consigneData) {
+        /**foreach ($request->parametrage as $consigneData) {
+            $this->storeSingleConsigne($consigneData, $champs, $codificationId);
+        }*/
+
+       /**foreach ($request->input('parametrage', []) as $consigneData) {
+            $this->storeSingleConsigne($consigneData, $champs, $codificationId);
+        }*/
+
+        foreach ($request->input('consignes', []) as $consigneData) {
             $this->storeSingleConsigne($consigneData, $champs, $codificationId);
         }
 
