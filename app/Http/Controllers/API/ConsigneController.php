@@ -29,7 +29,7 @@ class ConsigneController extends Controller
     public function listAll()
     {
         $consignes = Consigne::orderBy('id')->get();
-
+            dd($consignes);
         return response()->json([
             'status' => 'success',
             'data' => $consignes
