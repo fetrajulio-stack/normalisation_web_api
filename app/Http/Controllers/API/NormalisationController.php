@@ -153,11 +153,19 @@ class NormalisationController extends Controller
         $zDossier = $request->nom_dossier ?? "";
         $zCode_dossier = $request->nom_code_dossier ?? "";
 
+        $basepathProdcution = env('NORMALISATION_PRODUCTION_BASE_PATH');
+
         $basePath = config('normalisation.base_path');
-        $cheminLot = $basePath
+
+        $cheminLot = $basepathProdcution
+            . DIRECTORY_SEPARATOR . $zDossier
+            . DIRECTORY_SEPARATOR . $zCode_dossier . DIRECTORY_SEPARATOR;
+        
+        $cheminMDBCat= $basePath
             . DIRECTORY_SEPARATOR . $zDossier
             . DIRECTORY_SEPARATOR . $zCode_dossier
-            . DIRECTORY_SEPARATOR . 'SOURCE';
+            . DIRECTORY_SEPARATOR . 'Parametre.cat';
+
           //  dd($cheminLot);
         /************************************ */
 
@@ -167,20 +175,40 @@ class NormalisationController extends Controller
         //D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\SOURCE
 
         /*************************LECTURE DU FICHIER PARAMETRE.CAT ET RESUPERATION DE L'EXTENSION***************************** */
-        $ini = parse_ini_file('D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\Parametre.cat', true);
+        //$ini = parse_ini_file('D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\Parametre.cat', true);
+        $ini = parse_ini_file($cheminMDBCat);
+        //dd($ini);
         // récupère la valeur de normalisation dans parametre.cat
-        $extention = $ini['parametre']['normalisation'] ?? null; // affichera "VO"
-        // récupère la valeur de passe dans parametre.cat
-        $passsword = $ini['parametre']['passe'] ?? null; // affichera "VO"
+        if(isset($ini['parametre'])){
+            $extention = $ini['parametre']['normalisation']; // affichera "VO"
+        }
+        else if(isset($ini['normalisation'])) {
+            $extention = $ini['normalisation']; // affichera "VO"
+        }
+        else{
+            $extention = null;
+        }
 
+       // dd($extention);
+        // récupère la valeur de passe dans parametre.cat
+        if(isset($ini['parametre'])){
+            $passsword = $ini['parametre']['passe']; // affichera "VO"
+        }
+        else if(isset($ini['passe'])) {
+            $passsword = $ini['passe']; // affichera "VO"
+        }
+        else{
+            $passsword = null;
+        }
 
 
         /*************************RECUPERATION DES LOTS***************************** */
         $listLots = $this->listLots($cheminLot);
+        //dd($listLots);
 
         /*************************************************************************** */
         /************ Connexion PDO vers livraison.mdb puis vider la table source****************************** */
-          $cnn =  AccessService::connect($livraisonPath,null,null);
+          //$cnn =  AccessService::connect($livraisonPath,null,null);
 
         /**$resdelete = $cnn->exec("DELETE FROM SOURCE"); // vide la table*/
 
@@ -198,7 +226,7 @@ class NormalisationController extends Controller
         foreach ($listLots as $lotPath) {
             // Parcours récursif des fichiers MDB .OK.MDB
             $mdbFiles = $this->getOkMdbFile($lotPath, $extention);
-
+//dd($mdbFiles);
 
             foreach ($mdbFiles as $filePath) {
                // $cnnS = $this->connectAccess($filePath); // fichier de saisie
