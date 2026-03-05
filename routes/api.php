@@ -48,6 +48,7 @@ Route::get('/assemblage', [\App\Http\Controllers\API\NormalisationController::cl
 Route::get('/importmdb', [\App\Http\Controllers\API\NormalisationController::class, 'importMdb']);
 Route::get('/testa', [\App\Http\Controllers\API\NormalisationController::class, 'testa']);
 Route::get('/authtest', [\App\Http\Controllers\API\TestController::class, 'testPg']);
+Route::get('/downloadexcel/{filename}', [\App\Http\Controllers\API\NormalisationController::class, 'downloadExcel']);
 
 
 

@@ -431,11 +431,15 @@ class NormalisationController extends Controller
 
        Excel::store(new NormalisationExport($rowsForExport), $filePath, 'public');
 
+       /** Drop table source */
+        Schema::dropIfExists('source');
+
         return response()->json([
             'status' => 'OK',
             'message' => 'Fichier Excel généré',
             'url' => asset('storage/'.$filePath),
-            'path' => storage_path('app/' . $filePath)
+            'path' => storage_path('app/' . $filePath),
+            'filename' => $codeDossier . '.xlsx'
         ]);
 
         /**return Excel::download(
@@ -443,6 +447,13 @@ class NormalisationController extends Controller
             $codeDossier . '.xlsx'
         );*/
 
+    }
+
+    public function downloadExcel($filename)
+    {
+        $path = storage_path('app/public/Exports/' . $filename);
+
+        return response()->download($path);
     }
 
 }
