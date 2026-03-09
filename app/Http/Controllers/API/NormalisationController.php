@@ -165,9 +165,13 @@ class NormalisationController extends Controller
       //  $cheminLot = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\LOTS';              // chemin parent des LOTS
 
         //D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\SOURCE
-
+    //  dd("123");
         /*************************LECTURE DU FICHIER PARAMETRE.CAT ET RESUPERATION DE L'EXTENSION***************************** */
-        $ini = parse_ini_file('D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\Parametre.cat', true);
+        $ini = parse_ini_file(
+            'D:/DEVELOPPEMENT/PRODUCTION/NORMALISATION/STEFI MEDIAMETRIE/MED-08251-AVATAR-DFEDC-ADULTE/Parametre.cat',
+            true
+        );
+       // dd($ini);
         // récupère la valeur de normalisation dans parametre.cat
         $extention = $ini['parametre']['normalisation'] ?? null; // affichera "VO"
         // récupère la valeur de passe dans parametre.cat

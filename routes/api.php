@@ -20,10 +20,11 @@ use App\Http\Controllers\API\CodificationController;
 */
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [UserController::class, 'store']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('user')->group(function () {
-        Route::post('/register', [UserController::class, 'store']);
+
     });
 
     Route::prefix('parametrage')->group(function () {
