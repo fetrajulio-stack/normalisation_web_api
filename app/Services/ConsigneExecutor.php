@@ -29,6 +29,7 @@ use App\Services\Consignes\IdSocialConsigne;
 use App\Services\Consignes\IdStatutConsigne;
 use App\Services\Consignes\UpValueConsigne;
 use App\Services\Consignes\DownValueConsigne;
+use App\Services\Consignes\LeadingZeroConsigne;
 
 class ConsigneExecutor
 {
