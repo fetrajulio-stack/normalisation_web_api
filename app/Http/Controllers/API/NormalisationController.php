@@ -58,7 +58,7 @@ class NormalisationController extends Controller
             . DIRECTORY_SEPARATOR . $zDossier
             . DIRECTORY_SEPARATOR . $zCode_dossier
             . DIRECTORY_SEPARATOR . 'Parametre.mdb';
-
+          //  dd($zCheminParametreMdb);
         /************************************ */
         //$pdo = AccessService::connect("D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\parametre.mdb",null,null);
         $pdo = AccessService::connect($zCheminParametreMdb,null,null);
@@ -118,7 +118,7 @@ class NormalisationController extends Controller
 
         // Fonction récursive pour parcourir le répertoire
         $allData = $this->getMdbFiles($networkPath);
-            dd($allData);
+         //   dd($allData);
         return response()->json($allData);
     }
 

@@ -1,15 +1,35 @@
 <?php
 namespace App\Services;
 
+use App\Services\Consignes\AdresseConcateConsigne;
 use App\Services\Consignes\CompacterConsigne;
 use App\Services\Consignes\ConcatenationConsigne;
+use App\Services\Consignes\DateDayMonthConsigne;
+use App\Services\Consignes\DateDayMonthYearConsigne;
+use App\Services\Consignes\DateEmptyConsigne;
+use App\Services\Consignes\DateSectionConsigne;
+use App\Services\Consignes\DateStandardConsigne;
+use App\Services\Consignes\DateYearConsigne;
+use App\Services\Consignes\DateYearMonthDayConsigne;
+use App\Services\Consignes\DownValueConsigne;
 use App\Services\Consignes\FillemptyConsigne;
+use App\Services\Consignes\FillemptyNineConsigne;
+use App\Services\Consignes\FillemptyNrConsigne;
+use App\Services\Consignes\IdSatisfactionConsigne;
+use App\Services\Consignes\IdSocialConsigne;
+use App\Services\Consignes\IdStatutConsigne;
+use App\Services\Consignes\LeadingZeroConsigne;
 use App\Services\Consignes\LowercaseConsigne;
+use App\Services\Consignes\PrefixAfaConsigne;
+use App\Services\Consignes\PrefixAssociationFaConsigne;
 use App\Services\Consignes\PrefixConsigne;
 use App\Services\Consignes\SiAutreChampRenseigneConsigne;
 use App\Services\Consignes\SiVideAlorsConsigne;
+use App\Services\Consignes\ToNumericConsigne;
 use App\Services\Consignes\UppercaseConsigne;
 use App\Services\Consignes\CompactageConsigne;
+use App\Services\Consignes\UppercaseNoAccentConsigne;
+use App\Services\Consignes\UpValueConsigne;
 
 class ConsigneExecutor
 {
@@ -34,7 +54,7 @@ class ConsigneExecutor
             'DATE_JJMMAAA' => new DateDayMonthYearConsigne(),
             'DATE_YEAR' => new DateYearConsigne(),
             'DATE_STANDARD' => new DateStandardConsigne(),
-            'DATE_EMPTY' => new DateEmpyConsigne(),
+            'DATE_EMPTY' => new DateEmptyConsigne(),
             'DATE_SECTION' => new DateSectionConsigne(),
             'TO_NUMERIC' => new ToNumericConsigne(),
             'LEADING_ZERO' => new LeadingZeroConsigne(),
