@@ -20,7 +20,7 @@ use App\Services\Consignes\DateYearMonthDayConsigne;
 use App\Services\Consignes\DateDayMonthYearConsigne;
 use App\Services\Consignes\DateYearConsigne;
 use App\Services\Consignes\DateStandardConsigne;
-use App\Services\Consignes\DateEmpyConsigne;
+use App\Services\Consignes\DateEmptyConsigne;
 use App\Services\Consignes\DateSectionConsigne;
 use App\Services\Consignes\ToNumericConsigne;
 use App\Services\Consignes\AdresseConcateConsigne;
@@ -54,7 +54,7 @@ class ConsigneExecutor
             'DATE_JJMMAAA' => new DateDayMonthYearConsigne(),
             'DATE_YEAR' => new DateYearConsigne(),
             'DATE_STANDARD' => new DateStandardConsigne(),
-            'DATE_EMPTY' => new DateEmpyConsigne(),
+            'DATE_EMPTY' => new DateEmptyConsigne(),
             'DATE_SECTION' => new DateSectionConsigne(),
             'TO_NUMERIC' => new ToNumericConsigne(),
             'LEADING_ZERO' => new LeadingZeroConsigne(),
