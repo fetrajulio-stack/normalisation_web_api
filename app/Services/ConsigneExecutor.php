@@ -27,9 +27,13 @@ use App\Services\Consignes\SiAutreChampRenseigneConsigne;
 use App\Services\Consignes\SiVideAlorsConsigne;
 use App\Services\Consignes\ToNumericConsigne;
 use App\Services\Consignes\UppercaseConsigne;
-use App\Services\Consignes\CompactageConsigne;
+
+
 use App\Services\Consignes\UppercaseNoAccentConsigne;
 use App\Services\Consignes\UpValueConsigne;
+
+
+
 
 class ConsigneExecutor
 {
