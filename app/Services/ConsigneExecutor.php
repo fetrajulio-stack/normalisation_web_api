@@ -15,21 +15,27 @@ use App\Services\Consignes\DownValueConsigne;
 use App\Services\Consignes\FillemptyConsigne;
 use App\Services\Consignes\FillemptyNineConsigne;
 use App\Services\Consignes\FillemptyNrConsigne;
+
+
+use App\Services\Consignes\UppercaseNoAccentConsigne;
+use App\Services\Consignes\PrefixAfaConsigne;
+use App\Services\Consignes\PrefixAssociationFaConsigne;
+
+
 use App\Services\Consignes\IdSatisfactionConsigne;
 use App\Services\Consignes\IdSocialConsigne;
 use App\Services\Consignes\IdStatutConsigne;
 use App\Services\Consignes\LeadingZeroConsigne;
 use App\Services\Consignes\LowercaseConsigne;
-use App\Services\Consignes\PrefixAfaConsigne;
-use App\Services\Consignes\PrefixAssociationFaConsigne;
+
 use App\Services\Consignes\PrefixConsigne;
 use App\Services\Consignes\SiAutreChampRenseigneConsigne;
 use App\Services\Consignes\SiVideAlorsConsigne;
-use App\Services\Consignes\ToNumericConsigne;
+
 use App\Services\Consignes\UppercaseConsigne;
 
 
-use App\Services\Consignes\UppercaseNoAccentConsigne;
+
 use App\Services\Consignes\UpValueConsigne;
 
 

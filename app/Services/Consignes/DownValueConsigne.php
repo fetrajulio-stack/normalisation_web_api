@@ -9,19 +9,20 @@ class DownValueConsigne implements ConsigneInterface
         $step = $parametres['step'] ?? 1;
 
         foreach ($champs as $champ) {
-            if (!isset($ligne[$champ])) {
+
+            if (!array_key_exists($champ, $ligne)) {
                 continue;
             }
 
-            $valeur = trim((string) $ligne[$champ]);
+            $valeur = $ligne[$champ];
 
             // ignorer vide ou non numérique
-            if ($valeur === '' || !is_numeric($valeur)) {
+            if ($valeur === null || $valeur === '' || !is_numeric($valeur)) {
                 continue;
             }
 
             // décrément
-            $ligne[$champ] = $valeur - $step;
+            $ligne[$champ] = (int)$valeur - (int)$step;
         }
 
         return $ligne;
