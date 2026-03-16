@@ -18,7 +18,7 @@ class DateDayMonthYearConsigne implements ConsigneInterface
 
             try {
 
-                // Essaye plusieurs formats possibles
+                // Formats d'entrée possibles
                 $formats = [
                     'd/m/Y',
                     'd-m-Y',
@@ -42,9 +42,10 @@ class DateDayMonthYearConsigne implements ConsigneInterface
                 }
 
                 if ($date) {
-                    $ligne[$champ] = $date->format('dmY'); // ✅ Format final JJMMAAAA
+                    // ✅ Format final : JJ/MM/AAAA
+                    $ligne[$champ] = $date->format('d/m/Y');
                 } else {
-                    $ligne[$champ] = null; // ou garder valeur selon ta logique
+                    $ligne[$champ] = null;
                 }
 
             } catch (\Exception $e) {
