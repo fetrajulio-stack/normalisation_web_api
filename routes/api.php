@@ -44,6 +44,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/parametrage/{codificationId}', [ConsigneController::class, 'edit']);
     });
 
+    Route::apiResource('/parametre/datamap', \App\Http\Controllers\API\DatamapController::class);
+
     Route::post('/normalisation/{codification_id}', [\App\Http\Controllers\API\NormalisationController::class, 'normaliser']);
     Route::get('/normalise', [\App\Http\Controllers\API\NormalisationController::class, 'importParametre']);
 });
