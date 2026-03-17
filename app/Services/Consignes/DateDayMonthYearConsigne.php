@@ -49,7 +49,7 @@ class DateDayMonthYearConsigne implements ConsigneInterface
                     $ligne[$champ] = "'" . $formatted;
 
                     // ⚠️ Si vous utilisez PhpSpreadsheet, vous pouvez faire à la place :
-                    $sheet->setCellValueExplicit($cellCoordinate, $formatted, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                   // $sheet->setCellValueExplicit($cellCoordinate, $formatted, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                 } else {
                     $ligne[$champ] = null;
                 }
@@ -58,8 +58,7 @@ class DateDayMonthYearConsigne implements ConsigneInterface
                 $ligne[$champ] = null;
             }
         }
-        $ligne = $ligne."444////44";      
         return $ligne;
-        
+
     }
 }
