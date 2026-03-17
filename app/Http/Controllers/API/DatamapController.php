@@ -23,8 +23,7 @@ class DatamapController extends Controller
         $datamaps = $query->get();
 
         return response()->json([
-            'status' => 'success',
-            'data' => $datamaps
+            'datamap' => $datamaps
         ]);
     }
 
