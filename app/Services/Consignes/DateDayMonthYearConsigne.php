@@ -15,7 +15,6 @@ class DateDayMonthYearConsigne implements ConsigneInterface
             }
 
             $valeur = trim($ligne[$champ]);
-
             try {
 
                 // Formats d'entrée possibles
