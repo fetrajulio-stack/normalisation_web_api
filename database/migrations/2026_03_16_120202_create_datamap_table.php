@@ -17,7 +17,6 @@ return new class extends Migration
             $table->id();
             $table->integer('position');
             $table->integer('longueur');
-
             $table->unsignedBigInteger('codification_id');
             $table->unsignedBigInteger('champ_id');
 
