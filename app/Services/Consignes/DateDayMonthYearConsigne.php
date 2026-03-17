@@ -42,7 +42,14 @@ class DateDayMonthYearConsigne implements ConsigneInterface
 
                 if ($date) {
                     // ✅ Format final : JJ/MM/AAAA
-                    $ligne[$champ] = $date->format('d/m/Y');
+                    $formatted = $date->format('d/m/Y');
+
+                    // Forcer le texte pour Excel
+                    // Ajout de l'apostrophe pour que Excel ne réinterprète pas
+                    $ligne[$champ] = "'" . $formatted;
+
+                    // ⚠️ Si vous utilisez PhpSpreadsheet, vous pouvez faire à la place :
+                    $sheet->setCellValueExplicit($cellCoordinate, $formatted, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
                 } else {
                     $ligne[$champ] = null;
                 }
@@ -51,7 +58,8 @@ class DateDayMonthYearConsigne implements ConsigneInterface
                 $ligne[$champ] = null;
             }
         }
-
+        $ligne = $ligne."444////44";      
         return $ligne;
+        
     }
 }
