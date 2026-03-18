@@ -12,20 +12,26 @@ class DatamapController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
-    {
-        $query = Datamap::with(['codification', 'champ']);
+ public function index(Request $request)
+{
+    $query = Datamap::with(['champ']);
 
-        if ($request->filled('codification_id')) {
-            $query->where('codification_id', $request->codification_id);
-        }
-
-        $datamaps = $query->get();
-
-        return response()->json([
-            'datamap' => $datamaps
-        ]);
+    if ($request->filled('codification_id')) {
+        $query->where('codification_id', $request->codification_id);
     }
+
+    $datamaps = $query->get()->map(function ($item) {
+        return [
+            'idq' => $item->champ->nom_champ, // 🔥 IMPORTANT
+            'position' => $item->position,
+            'longueur' => $item->longueur,
+        ];
+    });
+
+    return response()->json([
+        'datamap' => $datamaps
+    ]);
+}
 
     /**
      * Store a newly created resource in storage.
