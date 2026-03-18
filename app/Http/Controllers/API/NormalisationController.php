@@ -71,6 +71,8 @@ class NormalisationController extends Controller
             $table->string('n_lot')->nullable()->default(null);
             $table->string('n_ima')->nullable()->default(null);
             $table->string('n_enr')->nullable()->default(null);
+            $table->string('ville')->nullable()->default(null);
+            $table->string('seance')->nullable()->default(null);
             foreach ($sourceRows as $row) {
                 $text_utf8 = mb_convert_encoding( $row['idq'] , 'UTF-8', 'Windows-1252');
 

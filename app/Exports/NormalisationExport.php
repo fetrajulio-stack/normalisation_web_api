@@ -16,7 +16,20 @@ class NormalisationExport implements FromArray, WithHeadings
 
         public function array(): array
         {
-        return $this->data;
+       // return $this->data;
+       foreach ($this->data as &$ligne) {
+
+        // Ajouter si n'existe pas
+        if (!array_key_exists('ville', $ligne)) {
+            $ligne['ville'] = '';
+        }
+
+        if (!array_key_exists('seance', $ligne)) {
+            $ligne['seance'] = '';
+        }
+    }
+
+    return $this->data;
         }
 
         public function headings(): array
