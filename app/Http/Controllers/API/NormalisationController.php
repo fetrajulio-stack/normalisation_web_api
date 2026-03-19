@@ -66,11 +66,16 @@ class NormalisationController extends Controller
         $tableName = 'source';
         Schema::dropIfExists($tableName);
 
-        Schema::create($tableName, function (Blueprint $table) use ($sourceRows) {
+        Schema::create($tableName, function (Blueprint $table) use ($sourceRows, $zDossier) {
             $table->bigIncrements('id');
             $table->string('n_lot')->nullable()->default(null);
             $table->string('n_ima')->nullable()->default(null);
             $table->string('n_enr')->nullable()->default(null);
+
+            if (strtoupper(trim($zDossier)) === 'STEFI MEDIAMETRIE') {
+                $table->string('ville')->nullable()->default(null);
+                $table->string('seance')->nullable()->default(null);
+            }
             
             foreach ($sourceRows as $row) {
                 $text_utf8 = mb_convert_encoding( $row['idq'] , 'UTF-8', 'Windows-1252');
