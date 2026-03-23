@@ -239,80 +239,64 @@ class NormalisationController extends Controller
 //dd($mdbFiles);
 
             foreach ($mdbFiles as $filePath) {
-               // $cnnS = $this->connectAccess($filePath); // fichier de saisie
+                $cnnS = AccessService::mdbConnect($filePath, $passsword);
 
-                $cnnS = AccessService::mdbConnect(
-                    $filePath,
-                    $passsword
-                );
+                try {
 
-                /**$cnnS = AccessService::connect($filePath,null,null);*/
-                // Lecture de la table TRAVAIL
-               $sqlTravail = "SELECT * FROM Travail ORDER BY TIFF, XORDRE";
-               // $rs = $cnnS->query(" SELECT * FROM Travail ORDER BY TIFF, XORDRE")->fetchAll(PDO::FETCH_ASSOC);
-                $rs = odbc_exec($cnnS, $sqlTravail);
+                    $sqlTravail = "SELECT * FROM Travail ORDER BY TIFF, XORDRE";
+                    $rs = odbc_exec($cnnS, $sqlTravail);
 
-                ////$rows = odbc_fetch_array($rs);
-                $tMysqlSourceFields = SELF::getMysqlSourceFields();
+                    $tMysqlSourceFields = self::getMysqlSourceFields();
+                    $batch = [];
 
-                $batch = [];
-                   //// dump($rows);
-         while ($rows = odbc_fetch_array($rs)) {
-                    $filtered = $this->tabFilter->filterAndNormalize(
-                        self::getNewDataFormat($rows,$regleFormat,$tMap),
-                        $tMysqlSourceFields
-                    );
+                    while ($rows = odbc_fetch_array($rs)) {
 
-                    $batch[] = $filtered;
+                        $filtered = $this->tabFilter->filterAndNormalize(
+                            self::getNewDataFormat($rows, $regleFormat, $tMap),
+                            $tMysqlSourceFields
+                        );
 
-                    if (count($batch) >= 500) {
+                        $batch[] = $filtered;
 
-                        DB::table('source')->insert($batch);
-                        $batch = [];
+                        if (count($batch) >= 500) {
+                            DB::table('source')->insert($batch);
+                            $batch = [];
+                        }
                     }
-                }
 
-                if (!empty($batch)) {
-                   // DB::table('source')->insert($batch);
+                    if (!empty($batch)) {
 
-                    foreach ($batch as $row) {
+                        foreach ($batch as $row) {
 
-                        // Conversion UTF-8 pour toutes les valeurs string
-                        foreach ($row as $key => $value) {
-                            if (is_string($value)) {
-                                // Supprime un éventuel préfixe b" et convertit en UTF-8
-                                $value = preg_replace('/^\s*b"/', '', $value); // retire b"
-                                $value = trim($value, '"'); // retire les guillemets éventuels
-                                $row[$key] = mb_convert_encoding($value, 'UTF-8', ['Windows-1252', 'ISO-8859-1', 'UTF-8']);
+                            foreach ($row as $key => $value) {
+                                if (is_string($value)) {
+                                    $value = preg_replace('/^\s*b"/', '', $value);
+                                    $value = trim($value, '"');
+                                    $row[$key] = mb_convert_encoding(
+                                        $value,
+                                        'UTF-8',
+                                        ['Windows-1252', 'ISO-8859-1', 'UTF-8']
+                                    );
+                                }
+                            }
+
+                            try {
+                                DB::table('source')->insert($row);
+                            } catch (\Illuminate\Database\QueryException $e) {
+                                logger()->error('ERREUR INSERT LIGNE MDB', [
+                                    'message' => $e->getMessage(),
+                                    'row'     => $row,
+                                ]);
                             }
                         }
+                    }
 
-                        try {
-                            DB::table('source')->insert($row);
-                        } catch (\Illuminate\Database\QueryException $e) {
-
-                            logger()->error('ERREUR INSERT LIGNE MDB', [
-                                'sql'       => $e->getSql(),
-                                'bindings'  => $e->getBindings(),
-                                'code'      => $e->getCode(),
-                                'message' => $e->getMessage(),
-                                'row'     => $row,
-                            ]);
-                            //inserer les erreurs dans la table source_import_errors
-                           /** DB::table('source_import_errors')->insert([
-                                'n_ima' => $row['n_ima'] ?? null,
-                                'error_message' => $e->getMessage(),
-                                'row_data' => json_encode($row, JSON_UNESCAPED_UNICODE)
-                            ]);*/
-                            // on continue sans bloquer tout le fichier
-                            continue;
-                        }
+                } finally {
+                    // 🔥 TOUJOURS fermer la connexion
+                    if ($cnnS) {
+                        odbc_close($cnnS);
                     }
                 }
-                /************************************************* */
-
-
-                $cnnS = null; // fermer PDO
             }
         }
 
@@ -381,13 +365,20 @@ class NormalisationController extends Controller
     {
         // Récupère toutes les consignes avec leurs groupes et champs
         $consignes = Consigne::with([
-            'groupes.champs.champ',
+            'groupes' => function ($qg) use ($codification_id) {
+                $qg->with([
+                    'champs' => function ($qc) use ($codification_id) {
+                        $qc->whereHas('champ', function ($qcc) use ($codification_id) {
+                            $qcc->where('codification_id', $codification_id);
+                        })
+                            ->with('champ');
+                    }
+                ]);
+            },
             'parametres'
         ])
-            ->whereHas('groupes.champs', function ($q) use ($codification_id) {
-                $q->whereHas('champ', function ($qc) use ($codification_id) {
-                    $qc->where('codification_id', $codification_id);
-                });
+            ->whereHas('groupes.champs.champ', function ($q) use ($codification_id) {
+                $q->where('codification_id', $codification_id);
             })
             ->get();
 
@@ -442,7 +433,7 @@ class NormalisationController extends Controller
        Excel::store(new NormalisationExport($rowsForExport), $filePath, 'public');
 
        /** Drop table source */
-        Schema::dropIfExists('source');
+     //   Schema::dropIfExists('source');
 
         return response()->json([
             'status' => 'OK',
