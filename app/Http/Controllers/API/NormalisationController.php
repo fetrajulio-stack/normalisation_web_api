@@ -154,10 +154,13 @@ class NormalisationController extends Controller
         /************************************ */
         $zDossier = $request->nom_dossier ?? "";
         $zCode_dossier = $request->nom_code_dossier ?? "";
-
-        $basepathProdcution = env('NORMALISATION_PRODUCTION_BASE_PATH');
+//dd($zDossier . DIRECTORY_SEPARATOR . $zCode_dossier);
+        //$basepathProdcution = env('NORMALISATION_BASE_PATH');
+        $basepathProdcution = config('normalisation.mdb_base_path');
+      //dd("prod base path : " . $basepathProdcution);
 
         $basePath = config('normalisation.base_path');
+       //dd($basePath);
 
         $cheminLot = $basepathProdcution
             . DIRECTORY_SEPARATOR . $zDossier
@@ -171,17 +174,17 @@ class NormalisationController extends Controller
           //  dd($cheminLot);
         /************************************ */
 
-        $livraisonPath = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\Normalisation\livraison.mdb'; // livraison.mdb
+        //$livraisonPath = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\Normalisation\livraison.mdb'; // livraison.mdb
       //  $cheminLot = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\LOTS';              // chemin parent des LOTS
 
         //D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\SOURCE
     //  dd("123");
         /*************************LECTURE DU FICHIER PARAMETRE.CAT ET RESUPERATION DE L'EXTENSION***************************** */
 
-      /**  $ini = parse_ini_file(
-            'D:/DEVELOPPEMENT/PRODUCTION/NORMALISATION/STEFI MEDIAMETRIE/MED-08251-AVATAR-DFEDC-ADULTE/Parametre.cat',
-            true
-        );*/
+        //$ini = parse_ini_file(
+         //   'D:/DEVELOPPEMENT/PRODUCTION/NORMALISATION/STEFI MEDIAMETRIE/MED-08251-AVATAR-DFEDC-ADULTE/Parametre.cat',
+          //  true
+        //);*/
        // dd($ini);
 
         //$ini = parse_ini_file('D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\Parametre.cat', true);
@@ -214,6 +217,7 @@ class NormalisationController extends Controller
 
         /*************************RECUPERATION DES LOTS***************************** */
         $listLots = $this->listLots($cheminLot);
+       // dd($cheminLot);
         //dd($listLots);
 
         /*************************************************************************** */
@@ -433,7 +437,7 @@ class NormalisationController extends Controller
        Excel::store(new NormalisationExport($rowsForExport), $filePath, 'public');
 
        /** Drop table source */
-     //   Schema::dropIfExists('source');
+       // Schema::dropIfExists('source');
 
         return response()->json([
             'status' => 'OK',
