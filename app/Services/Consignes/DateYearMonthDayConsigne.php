@@ -17,13 +17,28 @@ class DateYearMonthDayConsigne implements ConsigneInterface
                 continue;
             }
 
+            // Normaliser les dates numériques DDMMYYYY ou YYYYMMDD
+            if (preg_match('/^\d{8}$/', $valeur)) {
+                if (substr($valeur, 0, 2) > 31) {
+                    // Format probable YYYYMMDD
+                    $année = substr($valeur, 0, 4);
+                    $mois  = substr($valeur, 4, 2);
+                    $jour  = substr($valeur, 6, 2);
+                } else {
+                    // Format probable DDMMYYYY
+                    $jour  = substr($valeur, 0, 2);
+                    $mois  = substr($valeur, 2, 2);
+                    $année = substr($valeur, 4, 4);
+                }
+                $valeur = "$année-$mois-$jour";
+            }
+
             try {
-                // Création de la date depuis n'importe quel format valide
                 $date = new \DateTime($valeur);
-                // Format AAAA/JJ/MM
-                $ligne[$champ] = $date->format('Y/d/m');
+                // ✅ Format AAAA/MM/JJ
+                $ligne[$champ] = $date->format('Y/m/d');
             } catch (\Exception $e) {
-                // En cas d'erreur, on laisse la valeur inchangée
+                // On laisse la valeur inchangée si erreur
             }
         }
 

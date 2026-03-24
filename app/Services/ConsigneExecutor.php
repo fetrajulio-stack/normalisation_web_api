@@ -33,10 +33,10 @@ use App\Services\Consignes\SiAutreChampRenseigneConsigne;
 use App\Services\Consignes\SiVideAlorsConsigne;
 
 use App\Services\Consignes\UppercaseConsigne;
-
-
-
 use App\Services\Consignes\UpValueConsigne;
+use App\Services\Consignes\ToNumericConsigne;
+use App\Services\Consignes\EmptyAlwaysConsigne;
+
 
 
 
@@ -74,6 +74,7 @@ class ConsigneExecutor
             'ID_STATUT' => new IdStatutConsigne(),
             'UP_VALUE' => new UpValueConsigne(),
             'DOWN_VALUE' => new DownValueConsigne(),
+            'EMPTYALWAYS' => new EmptyAlwaysConsigne(),
             default => throw new \Exception("Consigne inconnue : $code")
         };
     }
