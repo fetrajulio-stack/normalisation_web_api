@@ -11,6 +11,7 @@ class UserController extends Controller
 {
     public function store(Request $request)
     {
+       
         $request->validate([
             'nom' => 'required|string|max:255',
             'prenom' => 'required|string|max:255',
@@ -19,6 +20,7 @@ class UserController extends Controller
             'matricule' => 'required|unique:users,matricule',
             'profil_id' => 'required|exists:profils,id'
         ]);
+        
 
         $user = User::create([
             'nom' => $request->nom,

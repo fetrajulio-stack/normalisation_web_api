@@ -56,6 +56,6 @@ Route::get('/testa', [\App\Http\Controllers\API\NormalisationController::class, 
 Route::get('/authtest', [\App\Http\Controllers\API\TestController::class, 'testPg']);
 Route::get('/downloadexcel/{filename}', [\App\Http\Controllers\API\NormalisationController::class, 'downloadExcel']);
 
-Route::post('/excel/import', [\App\Http\Controllers\API\NormalisationController::class, 'import']);
+Route::post('/excel/import', [\App\Http\Controllers\API\NormalisationController::class, 'importExcel']);
 
 

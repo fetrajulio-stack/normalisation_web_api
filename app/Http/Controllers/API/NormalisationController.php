@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use App\Services\AccessService;
 use Illuminate\Support\Facades\Schema;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PDO;
 
 
@@ -154,10 +155,13 @@ class NormalisationController extends Controller
         /************************************ */
         $zDossier = $request->nom_dossier ?? "";
         $zCode_dossier = $request->nom_code_dossier ?? "";
-
-        $basepathProdcution = env('NORMALISATION_PRODUCTION_BASE_PATH');
+//dd($zDossier . DIRECTORY_SEPARATOR . $zCode_dossier);
+        //$basepathProdcution = env('NORMALISATION_BASE_PATH');
+        $basepathProdcution = config('normalisation.mdb_base_path');
+      //dd("prod base path : " . $basepathProdcution);
 
         $basePath = config('normalisation.base_path');
+       //dd($basePath);
 
         $cheminLot = $basepathProdcution
             . DIRECTORY_SEPARATOR . $zDossier
@@ -171,17 +175,17 @@ class NormalisationController extends Controller
           //  dd($cheminLot);
         /************************************ */
 
-        $livraisonPath = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\Normalisation\livraison.mdb'; // livraison.mdb
+        //$livraisonPath = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\Normalisation\livraison.mdb'; // livraison.mdb
       //  $cheminLot = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\LOTS';              // chemin parent des LOTS
 
         //D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\SOURCE
     //  dd("123");
         /*************************LECTURE DU FICHIER PARAMETRE.CAT ET RESUPERATION DE L'EXTENSION***************************** */
 
-      /**  $ini = parse_ini_file(
-            'D:/DEVELOPPEMENT/PRODUCTION/NORMALISATION/STEFI MEDIAMETRIE/MED-08251-AVATAR-DFEDC-ADULTE/Parametre.cat',
-            true
-        );*/
+        //$ini = parse_ini_file(
+         //   'D:/DEVELOPPEMENT/PRODUCTION/NORMALISATION/STEFI MEDIAMETRIE/MED-08251-AVATAR-DFEDC-ADULTE/Parametre.cat',
+          //  true
+        //);*/
        // dd($ini);
 
         //$ini = parse_ini_file('D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\Parametre.cat', true);
@@ -214,6 +218,7 @@ class NormalisationController extends Controller
 
         /*************************RECUPERATION DES LOTS***************************** */
         $listLots = $this->listLots($cheminLot);
+       // dd($cheminLot);
         //dd($listLots);
 
         /*************************************************************************** */
@@ -433,7 +438,7 @@ class NormalisationController extends Controller
        Excel::store(new NormalisationExport($rowsForExport), $filePath, 'public');
 
        /** Drop table source */
-     //   Schema::dropIfExists('source');
+       // Schema::dropIfExists('source');
 
         return response()->json([
             'status' => 'OK',
@@ -448,6 +453,153 @@ class NormalisationController extends Controller
             $codeDossier . '.xlsx'
         );*/
 
+    }
+
+    /**
+     * Importer un fichier Excel uploadé
+     */
+    public function importExcel(Request $request)
+    {
+        try {
+            // Valider le fichier
+            $validated = $request->validate([
+                'file' => 'required|file|mimes:xlsx,xls,csv|max:10240', // max 10MB
+                'tableName' => 'required|string'
+            ]);
+
+            $file = $request->file('file');
+            $tableName = $request->input('tableName', 'data_import');
+
+            // Générer un nom de fichier unique
+           // $filename = time() . '_' . $file->getClientOriginalName();
+            $filename = $file->getClientOriginalName();
+            $filePath = 'Exports/' . $filename;
+
+            // Stocker le fichier dans storage/app/public/Exports
+            $storedPath = $file->storeAs('public/Exports', $filename);
+
+            // Lire le contenu du fichier Excel
+            try {
+                // Charger le fichier Excel
+                $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getPathname());
+                $worksheet = $spreadsheet->getActiveSheet();
+                $rows = $worksheet->toArray();
+
+                // Vérifier qu'il y a des données
+                if (empty($rows)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Le fichier Excel est vide'
+                    ], 400);
+                }
+
+                // Récupérer les colonnes de la table cible
+                $columns = DB::getSchemaBuilder()->getColumnListing($tableName);
+
+                // Traiter les données (première ligne = en-têtes)
+                $headers = array_shift($rows); // Extraire la première ligne comme en-têtes
+                $insertData = [];
+                $errorCount = 0;
+
+                foreach ($rows as $rowIndex => $row) {
+                    if (empty(array_filter($row))) {
+                        // Ignorer les lignes vides
+                        continue;
+                    }
+
+                    // Mapper les données avec les en-têtes
+                    $mappedRow = [];
+                    foreach ($headers as $colIndex => $header) {
+                        if ($header === null) continue;
+
+                        // Normaliser le nom de la colonne
+                        $normalizedHeader = strtolower(str_replace([' ', '-'], '_', trim($header)));
+
+                        // Vérifier si la colonne existe dans la table
+                        if (in_array($normalizedHeader, $columns)) {
+                            $value = $row[$colIndex] ?? null;
+
+                            // Encoder en UTF-8 si nécessaire
+                            if (is_string($value)) {
+                                $value = mb_convert_encoding($value, 'UTF-8', ['Windows-1252', 'ISO-8859-1', 'UTF-8']);
+                                $value = trim($value);
+                            }
+
+                            $mappedRow[$normalizedHeader] = $value;
+                        }
+                    }
+
+                    // Insérer seulement si la ligne contient des données
+                    if (!empty(array_filter($mappedRow))) {
+                        $insertData[] = $mappedRow;
+                    }
+
+                    // Insérer par lots de 500 lignes
+                    if (count($insertData) >= 500) {
+                        try {
+                            DB::table($tableName)->insert($insertData);
+                            $insertData = [];
+                        } catch (\Illuminate\Database\QueryException $e) {
+                            \Log::error('Erreur lors de l\'insertion des données Excel', [
+                                'tableName' => $tableName,
+                                'error' => $e->getMessage(),
+                                'row' => $rowIndex
+                            ]);
+                            $errorCount++;
+                        }
+                    }
+                }
+
+                // Insérer les données restantes
+                if (!empty($insertData)) {
+                    try {
+                        DB::table($tableName)->insert($insertData);
+                    } catch (\Illuminate\Database\QueryException $e) {
+                        \Log::error('Erreur lors de l\'insertion des données restantes', [
+                            'tableName' => $tableName,
+                            'error' => $e->getMessage()
+                        ]);
+                        $errorCount++;
+                    }
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Fichier importé avec succès !',
+                    'filename' => $filename,
+                    'filepath' => $filePath,
+                    'rows_imported' => count($rows) - $errorCount,
+                    'errors' => $errorCount > 0 ? "⚠️ $errorCount erreurs lors de l'import" : null
+                ], 200);
+
+            } catch (\Exception $e) {
+                // Si la lecture du fichier échoue
+                \Log::error('Erreur lors de la lecture du fichier Excel', [
+                    'error' => $e->getMessage(),
+                    'file' => $filename
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erreur lors de la lecture du fichier : ' . $e->getMessage()
+                ], 400);
+            }
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation échouée : ' . implode(', ', $e->errors()['file'] ?? ['Fichier invalide'])
+            ], 422);
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors de l\'import Excel', [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur serveur : ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function downloadExcel($filename)
