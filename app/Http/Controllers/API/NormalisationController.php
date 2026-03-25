@@ -473,9 +473,12 @@ class NormalisationController extends Controller
             // Générer un nom de fichier unique
            // $filename = time() . '_' . $file->getClientOriginalName();
             $filename = $file->getClientOriginalName();
+            $filenameWithoutExt = pathinfo($filename, PATHINFO_FILENAME); // Nom sans extension
+            $jsonFilename = $filenameWithoutExt . '.json';
             $filePath = 'Exports/' . $filename;
+            $jsonFilePath = 'Exports/' . $jsonFilename;
 
-            // Stocker le fichier dans storage/app/public/Exports
+            // Stocker le fichier original dans storage/app/public/Exports
             $storedPath = $file->storeAs('public/Exports', $filename);
 
             // Lire le contenu du fichier Excel
@@ -499,6 +502,7 @@ class NormalisationController extends Controller
                 // Traiter les données (première ligne = en-têtes)
                 $headers = array_shift($rows); // Extraire la première ligne comme en-têtes
                 $insertData = [];
+                $jsonDataRaw = []; // Pour stocker TOUTES les données du fichier Excel
                 $errorCount = 0;
 
                 foreach ($rows as $rowIndex => $row) {
@@ -507,7 +511,30 @@ class NormalisationController extends Controller
                         continue;
                     }
 
-                    // Mapper les données avec les en-têtes
+                    // Mapper les données avec les en-têtes (pour JSON - TOUTES les colonnes)
+                    $rawRow = [];
+                    foreach ($headers as $colIndex => $header) {
+                        if ($header === null) continue;
+
+                        // Normaliser le nom de la colonne
+                        $normalizedHeader = strtolower(str_replace([' ', '-'], '_', trim($header)));
+                        $value = $row[$colIndex] ?? null;
+
+                        // Encoder en UTF-8 si nécessaire
+                        if (is_string($value)) {
+                            $value = mb_convert_encoding($value, 'UTF-8', ['Windows-1252', 'ISO-8859-1', 'UTF-8']);
+                            $value = trim($value);
+                        }
+
+                        $rawRow[$normalizedHeader] = $value;
+                    }
+
+                    // Ajouter la ligne brute aux données JSON (TOUTES les colonnes)
+                    if (!empty(array_filter($rawRow))) {
+                        $jsonDataRaw[] = $rawRow;
+                    }
+
+                    // Mapper les données avec les en-têtes (pour la table - colonnes existantes uniquement)
                     $mappedRow = [];
                     foreach ($headers as $colIndex => $header) {
                         if ($header === null) continue;
@@ -532,6 +559,7 @@ class NormalisationController extends Controller
                     // Insérer seulement si la ligne contient des données
                     if (!empty(array_filter($mappedRow))) {
                         $insertData[] = $mappedRow;
+                        $jsonData[] = $mappedRow; // Ajouter aux données JSON
                     }
 
                     // Insérer par lots de 500 lignes
@@ -563,12 +591,36 @@ class NormalisationController extends Controller
                     }
                 }
 
+                // Sauvegarder les données en fichier JSON
+                try {
+                    $jsonPath = storage_path('app/public/Exports/' . $jsonFilename);
+                    // Sauvegarder TOUTES les données du fichier Excel dans le JSON
+                    $jsonContent = json_encode($jsonDataRaw, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+
+                    file_put_contents($jsonPath, $jsonContent);
+
+                    \Log::info('Fichier JSON créé avec succès', [
+                        'filename' => $jsonFilename,
+                        'path' => $jsonPath,
+                        'rows' => count($jsonDataRaw),
+                        'data_sample' => array_slice($jsonDataRaw, 0, 1) // Afficher le premier enregistrement
+                    ]);
+                } catch (\Exception $jsonException) {
+                    \Log::error('Erreur lors de la création du fichier JSON', [
+                        'error' => $jsonException->getMessage(),
+                        'filename' => $jsonFilename
+                    ]);
+                }
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Fichier importé avec succès !',
                     'filename' => $filename,
                     'filepath' => $filePath,
-                    'rows_imported' => count($rows) - $errorCount,
+                    'json_filename' => $jsonFilename,
+                    'json_filepath' => $jsonFilePath,
+                    'rows_imported_json' => count($jsonDataRaw),  // Toutes les données du fichier
+                    'rows_imported_db' => count($insertData),     // Données insérées en BD
                     'errors' => $errorCount > 0 ? "⚠️ $errorCount erreurs lors de l'import" : null
                 ], 200);
 
