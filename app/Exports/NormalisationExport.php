@@ -61,7 +61,7 @@ class NormalisationExport implements FromArray, WithHeadings
 
         // ✅ stocker les données nettoyées
         $this->processedData = $data;
-        
+
         return $data;
     }
 
@@ -83,28 +83,7 @@ class NormalisationExport implements FromArray, WithHeadings
     }, $headings);
 }
 
-        
 
-        
-
-
-    public function headings(): array
-    {
-        if (empty($this->data)) {
-            return [];
-        }
-
-        // 🔥 supprimer les colonnes inutiles des en-têtes
-        $headings = array_keys($this->data[0]);
-
-        $headings = array_filter($headings, function ($col) {
-            return !in_array($col, ['created_at', 'updated_at']);
-        });
-
-        return array_map(function ($heading) {
-            return strtoupper($heading);
-        }, $headings);
-    }
 
     // ✅ Mettre la première ligne en GRAS
     public function styles(Worksheet $sheet)
