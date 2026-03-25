@@ -17,14 +17,29 @@ class DateStandardConsigne implements ConsigneInterface
                 continue;
             }
 
-            // Essayer de convertir en DateTime
+            // Normaliser les dates numériques (DDMMYYYY ou YYYYMMDD)
+            if (preg_match('/^\d{8}$/', $valeur)) {
+                if (substr($valeur, 0, 2) > 31) {
+                    // YYYYMMDD
+                    $annee = substr($valeur, 0, 4);
+                    $mois  = substr($valeur, 4, 2);
+                    $jour  = substr($valeur, 6, 2);
+                } else {
+                    // DDMMYYYY
+                    $jour  = substr($valeur, 0, 2);
+                    $mois  = substr($valeur, 2, 2);
+                    $annee = substr($valeur, 4, 4);
+                }
+
+                $valeur = "$annee-$mois-$jour"; // format ISO
+            }
+
             try {
-                // Création automatique de la date
                 $date = new \DateTime($valeur);
-                // Format jj/mm/aaaa
+                // ✅ Format jj/mm/aaaa
                 $ligne[$champ] = $date->format('d/m/Y');
             } catch (\Exception $e) {
-                // Si échec, on laisse la valeur inchangée
+                // On garde la valeur si erreur
             }
         }
 

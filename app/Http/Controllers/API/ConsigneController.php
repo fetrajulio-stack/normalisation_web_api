@@ -226,7 +226,8 @@ class ConsigneController extends Controller
         $sourceRows = $this->encodingService->utf8EncodeRecursive($sourceRows);
 
         // Ajouter les champs supplémentaires n_lot, n_ima, n_enr
-        $extraChamps = ['n_lot', 'n_ima', 'n_enr'];
+        $extraChamps = ['n_lot', 'n_ima', 'n_enr','ville', 'seance'];
+
 
         foreach ($extraChamps as $champ) {
             Champ::updateOrCreate(
