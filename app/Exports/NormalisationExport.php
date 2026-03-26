@@ -65,6 +65,7 @@ class NormalisationExport implements FromArray, WithHeadings
         return $data;
     }
 
+
  public function headings(): array
 {
     if (empty($this->data)) {
