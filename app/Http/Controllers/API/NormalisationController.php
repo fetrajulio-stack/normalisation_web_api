@@ -472,20 +472,24 @@ class NormalisationController extends Controller
             // Valider le fichier
             $validated = $request->validate([
                 'file' => 'required|file|mimes:xlsx,xls,csv|max:10240', // max 10MB
-                'tableName' => 'required|string'
+                'tableName' => 'required|string',
+                'codeDossierName' => 'nullable|string',
+                'codification_id' => 'nullable|integer'
             ]);
 
             $file = $request->file('file');
             $tableName = $request->input('tableName', 'data_import');
-
+          
             // Générer un nom de fichier unique
            // $filename = time() . '_' . $file->getClientOriginalName();
             $filename = $file->getClientOriginalName();
             $filenameWithoutExt = pathinfo($filename, PATHINFO_FILENAME); // Nom sans extension
             $jsonFilename = $filenameWithoutExt . '.json';
+            $txtFilename = $filenameWithoutExt . '.txt';
             $filePath = 'Exports/' . $filename;
             $jsonFilePath = 'Exports/' . $jsonFilename;
-
+            $txtFilePath = 'Exports/' . $txtFilename;
+               
             // Stocker le fichier original dans storage/app/public/Exports
             $storedPath = $file->storeAs('public/Exports', $filename);
 
@@ -620,6 +624,80 @@ class NormalisationController extends Controller
                     ]);
                 }
 
+                // Générer le fichier .txt avec formatage selon les datamaps
+                $txtFilenameGenerated = null;
+                $codificationId = $request->input('codification_id');
+              
+                \Log::info('=== DEBUG importExcel ===', [
+                    'codification_id' => $codificationId,
+                    'jsonDataRaw_count' => count($jsonDataRaw),
+                    'headers_count' => count($headers ?? [])
+                ]);
+                
+                if ($codificationId) {
+                       
+                    try {
+                        
+                        // Récupérer les datamaps pour cette codification
+                        $datamaps = $this->getDatamaps($codificationId);
+                      
+                        \Log::info('Datamaps retrieved', [
+                            'codificationId' => $codificationId,
+                            'datamaps_count' => count($datamaps),
+                            'datamaps_data' => $datamaps
+                        ]);
+                        
+                        if (!empty($datamaps)) {
+                           
+                            $txtContent = $this->generateTxtContent($jsonDataRaw, $datamaps, $headers);
+                          
+                            \Log::info('TXT content generated', [
+                                'filename' => $txtFilename,
+                                'content_length' => strlen($txtContent),
+                                'line_count' => count(explode(PHP_EOL, $txtContent))
+                            ]);
+                            
+                            // Sauvegarder le fichier .txt
+                            $txtPath = storage_path('app/public/Exports/' . $txtFilename);
+                            
+                            // Vérifier que le répertoire existe
+                            $exportDir = storage_path('app/public/Exports');
+                            if (!is_dir($exportDir)) {
+                                mkdir($exportDir, 0777, true);
+                                \Log::info('Créé le répertoire Exports', ['path' => $exportDir]);
+                            }
+                            
+                            $bytesWritten = file_put_contents($txtPath, $txtContent);
+                            
+                            \Log::info('Fichier TXT écrit', [
+                                'filename' => $txtFilename,
+                                'path' => $txtPath,
+                                'bytes_written' => $bytesWritten,
+                                'file_exists' => file_exists($txtPath)
+                            ]);
+                            
+                            if ($bytesWritten !== false) {
+                                $txtFilenameGenerated = $txtFilename;
+                            } else {
+                                \Log::error('Impossible d\'écrire le fichier TXT', [
+                                    'path' => $txtPath,
+                                    'filename' => $txtFilename
+                                ]);
+                            }
+                        } else {
+                            \Log::warning('Aucune datamap trouvée', ['codificationId' => $codificationId]);
+                        }
+                    } catch (\Exception $txtException) {
+                        \Log::error('Erreur lors de la création du fichier TXT', [
+                            'error' => $txtException->getMessage(),
+                            'trace' => $txtException->getTraceAsString(),
+                            'filename' => $txtFilename
+                        ]);
+                    }
+                } else {
+                    \Log::warning('codification_id non fourni ou nul');
+                }
+
                 return response()->json([
                     'success' => true,
                     'message' => 'Fichier importé avec succès !',
@@ -627,6 +705,8 @@ class NormalisationController extends Controller
                     'filepath' => $filePath,
                     'json_filename' => $jsonFilename,
                     'json_filepath' => $jsonFilePath,
+                    'txt_filename' => $txtFilenameGenerated,
+                    'txt_filepath' => $txtFilenameGenerated ? ('Exports/' . $txtFilenameGenerated) : null,
                     'rows_imported_json' => count($jsonDataRaw),  // Toutes les données du fichier
                     'rows_imported_db' => count($insertData),     // Données insérées en BD
                     'errors' => $errorCount > 0 ? "⚠️ $errorCount erreurs lors de l'import" : null
@@ -660,6 +740,135 @@ class NormalisationController extends Controller
                 'message' => 'Erreur serveur : ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Récupérer les datamaps pour une codification
+     */
+    private function getDatamaps($codificationId)
+    {
+         
+        \Log::info('getDatamaps called', ['codificationId' => $codificationId]);
+        
+        // Importer le modèle Datamap si nécessaire
+        // Cela suppose qu'un modèle Datamap existe avec une relation vers Champ
+        $datamaps = DB::table('datamaps')
+            ->join('champs', 'datamaps.champ_id', '=', 'champs.id')
+            ->where('datamaps.codification_id', $codificationId)
+            ->select('champs.nom_champ', 'datamaps.position', 'datamaps.longueur')
+            ->orderBy('datamaps.position')
+            ->get()
+            ->toArray();
+        
+        \Log::info('getDatamaps result', [
+            'codificationId' => $codificationId,
+            'datamaps_found' => count($datamaps),
+            'sample' => isset($datamaps[0]) ? $datamaps[0] : null,
+            'all_datamaps' => $datamaps
+        ]);
+        
+        return $datamaps;
+    }
+
+    /**
+     * Générer le contenu du fichier TXT avec formatage à largeur fixe
+     */
+    private function generateTxtContent($rows, $datamaps, $headers)
+    {
+      
+        \Log::info('=== generateTxtContent START ===', [
+            'rows_count' => count($rows),
+            'datamaps_count' => count($datamaps),
+            'first_row_sample' => isset($rows[0]) ? array_slice($rows[0], 0, 3) : null
+        ]);
+        
+        $txtLines = [];
+        
+        // Créer un mapping entre les en-têtes Excel et les datamaps
+        $datamap_rules = [];
+     
+        foreach ($datamaps as $datamap) {
+            // Normaliser le nom du champ pour comparaison
+            $normalizedChampName = strtolower(str_replace([' ', '-'], '_', trim($datamap->nom_champ)));
+            $datamap_rules[$normalizedChampName] = [
+                'position' => (int)$datamap->position,
+                'longueur' => (int)$datamap->longueur
+            ];
+        }
+       
+        \Log::info('Datamap rules created', [
+            'rules_count' => count($datamap_rules),
+            'rules_keys' => array_keys($datamap_rules)
+        ]);
+
+        // Traiter chaque ligne de données
+        $rowsProcessed = 0;
+        $rowsSkipped = 0;
+        
+        foreach ($rows as $rowIndex => $rowData) {
+          
+            // Créer un tableau ordonné par position
+            $position_data = [];
+            unset($rowData['id']); // Supprimer l'id si présent, car ce n'est pas un champ à exporter
+         
+            foreach ($rowData as $fieldName => $value) {
+                $normalizedField = strtolower(str_replace([' ', '-'], '_', trim($fieldName)));
+              
+                // Vérifier si ce champ a une règle de formatage
+                if (isset($datamap_rules[$normalizedField])) {
+                    $rule = $datamap_rules[$normalizedField];
+                    $pos = $rule['position'];
+                    $len = $rule['longueur'];
+                   
+                    // Convertir la valeur en string et traiter le formatage
+                    $strValue = (string)($value ?? '');
+                    
+                    // Formater selon la longueur
+                    if (strlen($strValue) > $len) {
+                        // Tronquer si la valeur est trop longue
+                        $strValue = substr($strValue, 0, $len);
+                    } elseif (strlen($strValue) < $len) {
+                        // Compléter avec des espaces si la valeur est trop courte
+                        $strValue = str_pad($strValue, $len, ' ', STR_PAD_RIGHT);
+                    }
+                    
+                    $position_data[$pos] = $strValue;
+                }
+            }
+       
+            // Trier par position et créer la ligne
+            if (!empty($position_data)) {
+                ksort($position_data);
+                $line = implode('', $position_data);
+                $txtLines[] = $line;
+                $rowsProcessed++;
+                
+                // LOG le premier exemple
+                if ($rowIndex === 0) {
+                    \Log::info('First row processed', [
+                        'position_data_count' => count($position_data),
+                        'line_preview' => substr($line, 0, 100)
+                    ]);
+                }
+            } else {
+                $rowsSkipped++;
+                if ($rowIndex === 0) {
+                    \Log::warning('First row was skipped - no position_data', [
+                        'rowData_keys' => array_keys($rowData),
+                        'expected_keys' => array_keys($datamap_rules)
+                    ]);
+                }
+            }
+        }
+        
+        \Log::info('=== generateTxtContent FINISH ===', [
+            'rows_processed' => $rowsProcessed,
+            'rows_skipped' => $rowsSkipped,
+            'txtLines_count' => count($txtLines)
+        ]);
+        
+        // Joindre toutes les lignes avec des sauts de ligne
+        return implode(PHP_EOL, $txtLines);
     }
 
     public function downloadExcel($filename)
