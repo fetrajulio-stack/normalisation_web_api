@@ -33,8 +33,10 @@ use App\Services\Consignes\SiAutreChampRenseigneConsigne;
 use App\Services\Consignes\SiVideAlorsConsigne;
 
 use App\Services\Consignes\UppercaseConsigne;
-
 use App\Services\Consignes\UpValueConsigne;
+use App\Services\Consignes\ToNumericConsigne;
+use App\Services\Consignes\EmptyAlwaysConsigne;
+
 
 use App\Services\Consignes\ExtraireNomLotConsigne;
 use App\Services\Consignes\IncrementationConsigne;
@@ -76,6 +78,7 @@ class ConsigneExecutor
             'EXTRAIRE_NOM_LOT' => new ExtraireNomLotConsigne(),
             'INCREMENT' => new IncrementationConsigne(),
             'CONCATENER_CHAMPS' => new ConcatenerChampsConsigne(),
+            'EMPTYALWAYS' => new EmptyAlwaysConsigne(),
             default => throw new \Exception("Consigne inconnue : $code")
         };
     }
