@@ -34,12 +34,11 @@ use App\Services\Consignes\SiVideAlorsConsigne;
 
 use App\Services\Consignes\UppercaseConsigne;
 
-
-
 use App\Services\Consignes\UpValueConsigne;
 
-
-
+use App\Services\Consignes\ExtraireNomLotConsigne;
+use App\Services\Consignes\IncrementationConsigne;
+use App\Services\Consignes\ConcatenerChampsConsigne;
 
 class ConsigneExecutor
 {
@@ -74,6 +73,9 @@ class ConsigneExecutor
             'ID_STATUT' => new IdStatutConsigne(),
             'UP_VALUE' => new UpValueConsigne(),
             'DOWN_VALUE' => new DownValueConsigne(),
+            'EXTRAIRE_NOM_LOT' => new ExtraireNomLotConsigne(),
+            'INCREMENT' => new IncrementationConsigne(),
+            'CONCATENER_CHAMPS' => new ConcatenerChampsConsigne(),
             default => throw new \Exception("Consigne inconnue : $code")
         };
     }
