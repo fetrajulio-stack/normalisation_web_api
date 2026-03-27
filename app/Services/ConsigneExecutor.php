@@ -38,8 +38,9 @@ use App\Services\Consignes\ToNumericConsigne;
 use App\Services\Consignes\EmptyAlwaysConsigne;
 
 
-
-
+use App\Services\Consignes\ExtraireNomLotConsigne;
+use App\Services\Consignes\IncrementationConsigne;
+use App\Services\Consignes\ConcatenerChampsConsigne;
 
 class ConsigneExecutor
 {
@@ -74,6 +75,9 @@ class ConsigneExecutor
             'ID_STATUT' => new IdStatutConsigne(),
             'UP_VALUE' => new UpValueConsigne(),
             'DOWN_VALUE' => new DownValueConsigne(),
+            'EXTRAIRE_NOM_LOT' => new ExtraireNomLotConsigne(),
+            'INCREMENT' => new IncrementationConsigne(),
+            'CONCATENER_CHAMPS' => new ConcatenerChampsConsigne(),
             'EMPTYALWAYS' => new EmptyAlwaysConsigne(),
             default => throw new \Exception("Consigne inconnue : $code")
         };
