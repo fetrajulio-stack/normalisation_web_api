@@ -79,6 +79,7 @@ class ConsigneExecutor
             'INCREMENT' => new IncrementationConsigne(),
             'CONCATENER_CHAMPS' => new ConcatenerChampsConsigne(),
             'EMPTYALWAYS' => new EmptyAlwaysConsigne(),
+            'FILL_EMPTY_DYN' => new FillemptyDynConsigne(),
             default => throw new \Exception("Consigne inconnue : $code")
         };
     }
