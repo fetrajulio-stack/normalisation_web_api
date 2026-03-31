@@ -227,6 +227,23 @@ class NormalisationController extends Controller
        // dd($cheminLot);
         //dd($listLots);
 
+        // Filtrer les lots si une sélection a été envoyée par le frontend
+        $selectedLots = $request->input('selected_lots'); // Array de noms de lots
+        
+        if (!empty($selectedLots)) {
+            // Filtrer pour garder seulement les lots sélectionnés
+            $listLots = array_filter($listLots, function ($lotPath) use ($selectedLots, $cheminLot) {
+                $lotName = basename($lotPath); // Récupérer le nom du dossier
+                return in_array($lotName, $selectedLots);
+            });
+            
+            \Log::info('Lots filtrés selon la sélection', [
+                'selected_lots_count' => count($selectedLots),
+                'filtered_lots_count' => count($listLots),
+                'selected_lots' => $selectedLots
+            ]);
+        }
+
         /*************************************************************************** */
         /************ Connexion PDO vers livraison.mdb puis vider la table source****************************** */
           //$cnn =  AccessService::connect($livraisonPath,null,null);
@@ -312,6 +329,69 @@ class NormalisationController extends Controller
         }
 
         return response()->json(['message' => 'Import terminé.']);
+    }
+
+    /**
+     * Récupérer la liste des lots (sous-dossiers) pour un code dossier
+     * Appelé par le frontend pour afficher le modal de sélection
+     */
+    public function getLots(Request $request)
+    {
+        try {
+            $nom_dossier = $request->input('nom_dossier');
+            $nom_code_dossier = $request->input('nom_code_dossier');
+
+            if (!$nom_dossier || !$nom_code_dossier) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Paramètres manquants'
+                ], 400);
+            }
+
+            $basepathProduction = config('normalisation.mdb_base_path');
+            
+            $cheminLot = $basepathProduction
+                . DIRECTORY_SEPARATOR . $nom_dossier
+                . DIRECTORY_SEPARATOR . $nom_code_dossier . DIRECTORY_SEPARATOR;
+
+            // Vérifier que le répertoire existe
+            if (!is_dir($cheminLot)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Le répertoire des lots n\'existe pas',
+                    'path' => $cheminLot
+                ], 400);
+            }
+
+            // Récupérer tous les sous-dossiers (lots)
+            $lots = [];
+            foreach (scandir($cheminLot) as $item) {
+                if ($item === '.' || $item === '..') continue;
+                $fullPath = $cheminLot . $item;
+                if (is_dir($fullPath)) {
+                    $lots[] = $item; // Garder juste le nom du dossier
+                }
+            }
+
+            // Trier les lots par nom
+            sort($lots);
+
+            return response()->json([
+                'success' => true,
+                'lots' => $lots,
+                'count' => count($lots)
+            ], 200);
+
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors de la récupération des lots', [
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erreur serveur : ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     public function listLots($dir)
