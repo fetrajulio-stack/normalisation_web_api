@@ -13,6 +13,7 @@ use App\Services\Consignes\DateYearConsigne;
 use App\Services\Consignes\DateYearMonthDayConsigne;
 use App\Services\Consignes\DownValueConsigne;
 use App\Services\Consignes\FillemptyConsigne;
+use App\Services\Consignes\FilleemptyDynConsigne;
 use App\Services\Consignes\FillemptyNineConsigne;
 use App\Services\Consignes\FillemptyNrConsigne;
 
@@ -79,7 +80,7 @@ class ConsigneExecutor
             'INCREMENT' => new IncrementationConsigne(),
             'CONCATENER_CHAMPS' => new ConcatenerChampsConsigne(),
             'EMPTYALWAYS' => new EmptyAlwaysConsigne(),
-            'FILL_EMPTY_DYN' => new FillemptyDynConsigne(),
+            'FILL_EMPTY_DYN' => new FilleemptyDynConsigne(),
             default => throw new \Exception("Consigne inconnue : $code")
         };
     }

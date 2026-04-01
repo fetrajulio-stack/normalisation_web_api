@@ -2,7 +2,7 @@
 
 namespace App\Services\Consignes;
 
-class FillemptyDynConsigne
+class FilleemptyDynConsigne
 {
     /**
      * Remplit les champs vides avec une valeur personnalisée (Texte ou Chiffre).
