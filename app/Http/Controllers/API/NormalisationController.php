@@ -64,7 +64,7 @@ class NormalisationController extends Controller
         //$pdo = AccessService::connect("D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\parametre.mdb",null,null);
         $pdo = AccessService::connect($zCheminParametreMdb,null,null);
 
-        $sourceRows = $pdo->query(" SELECT idq FROM SOURCE ORDER BY ordreq ASC")->fetchAll(PDO::FETCH_ASSOC);
+        $sourceRows = $pdo->query(" SELECT idq FROM LIVRAISON ORDER BY ordreq ASC")->fetchAll(PDO::FETCH_ASSOC);
     //    dd($sourceRows);
         $tableName = 'source';
         Schema::dropIfExists($tableName);
