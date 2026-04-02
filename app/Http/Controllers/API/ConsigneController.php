@@ -15,12 +15,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Services\EncodingService;
 use PDO;
+use Exception;
 
 class ConsigneController extends Controller
 {
-    protected TextNormalizerService  $normalizer;
+    protected TextNormalizerService $normalizer;
     protected $encodingService;
-    public function __construct(TextNormalizerService $normalizer,EncodingService $encodingService)
+
+    public function __construct(TextNormalizerService $normalizer, EncodingService $encodingService)
     {
         $this->normalizer = $normalizer;
         $this->encodingService = $encodingService;
@@ -29,72 +31,14 @@ class ConsigneController extends Controller
     public function listAll()
     {
         $consignes = Consigne::orderBy('id')->get();
-          //  dd($consignes);
         return response()->json([
             'status' => 'success',
             'data' => $consignes
         ]);
     }
 
-    public function store_old(Request $request)
-    {
-
-        foreach ($request->all() as $consigneData)
-        {
-            $this->storeSingleConsigne_old($consigneData);
-        }
-
-        return response()->json([
-            'status' => 'OK',
-            'message' => 'Paramétrage enregistré avec succès'
-        ]);
-    }
-
-    private function storeSingleConsigne_old( $consigneData )
-    {
-
-        DB::transaction(function () use ($consigneData) {
-
-            $consigne = Consigne::findOrFail($consigneData['consigne_id']);
-
-            foreach ($consigneData['groupes'] as $groupeData) {
-
-                $groupe = Consigne_groupe::updateOrCreate([
-                    'consigne_id' => $consigne->id,
-                    'ordre_execution' => $groupeData['ordre'] ?? 1,
-                ]);
-
-                foreach ($groupeData['champs'] as $ordre => $champId) {
-
-                    $champ = Champ::findOrFail($champId);
-
-                    Consigne_groupe_champ::updateOrCreate([
-                        'consigne_groupe_id' => $groupe->id,
-                        'champ_id'           => $champ->id,
-                        'ordre'              => $ordre + 1,
-                    ]);
-                }
-
-            }
-
-            if ( ISSET( $consigneData['parametres'] ) ) {
-                foreach ($consigneData['parametres'] as $cle => $valeur) {
-                    Parametre_consigne::updateOrCreate(
-                        [
-                            'consigne_id' => $consigne->id,
-                            'cle' => $cle,
-                        ],
-                        [
-                            'valeur' => $valeur ?? '',
-                        ]
-                    );
-                }
-            }
-        });
-    }
-
     /**
-     * API PRINCIPALE
+     * API PRINCIPALE D'ENREGISTREMENT
      */
     public function store(Request $request)
     {
@@ -107,26 +51,25 @@ class ConsigneController extends Controller
         DB::beginTransaction();
 
         try {
-
-            // 1️⃣ Création ou récupération codification
+            // 1️⃣ Création ou récupération de la codification (le dossier)
             $codification = Codification::firstOrCreate([
                 'dossier' => $request->nom_dossier,
                 'code_dossier' => $request->nom_code_dossier
             ]);
 
             // 2️⃣ Import champs depuis MDB
-            $listeChamps = $this->importFromMdb($codification->id, $request->nom_dossier, $request->nom_code_dossier);
+            $this->importFromMdb($codification->id, $request->nom_dossier, $request->nom_code_dossier);
 
-
-            // 3️⃣ Préchargement des champs
+            // 3️⃣ Préchargement des champs pour ce dossier
             $champs = Champ::where('codification_id', $codification->id)
                 ->get()
                 ->keyBy('nom_champ');
 
-            // Avant de réenregistrer les nouveaux paramètres :supprimmer les anciens enregistrement
+            // 4️⃣ Nettoyage des anciens paramètres pour CE dossier uniquement avant ré-enregistrement
+            // Cela évite les doublons si on modifie le paramétrage du même dossier
             Parametre_consigne::where('codification_id', $codification->id)->delete();
 
-            // 4️⃣ Enregistrement consignes
+            // 5️⃣ Enregistrement des consignes avec le codification_id
             foreach ($request->consignes as $consigneData) {
                 $this->storeSingleConsigne($consigneData, $champs, $codification->id);
             }
@@ -139,9 +82,7 @@ class ConsigneController extends Controller
             ]);
 
         } catch (Exception $e) {
-
             DB::rollBack();
-
             return response()->json([
                 'status' => 'error',
                 'message' => $e->getMessage()
@@ -150,52 +91,120 @@ class ConsigneController extends Controller
     }
 
     /**
-     * Enregistre UNE consigne
+     * Enregistre UNE consigne liée à un dossier (codificationId)
      */
     private function storeSingleConsigne(array $consigneData, $champs, $codificationId)
     {
-
-        foreach ($consigneData['groupes'] as $groupeData) {
-
-            // création groupe
-            $groupe = Consigne_groupe::create([
-                'consigne_id' => $consigneData['consigne_id'],
-                'ordre' => $groupeData['ordre']
-            ]);
-
-            // association champs
-            foreach ($groupeData['champs'] as $ordre => $nomChamp) {
-
-                $nomChamp = strtolower($nomChamp);
-
-                if (!isset($champs[$nomChamp])) {
-                    throw new \Exception("Champ introuvable : $nomChamp");
-                }
-
-                Consigne_groupe_champ::create([
-                    'consigne_groupe_id' => $groupe->id,
-                    'champ_id' => $champs[$nomChamp]->id,
-                    'ordre' => $ordre + 1
+        // Enregistrement des groupes et champs
+        if (isset($consigneData['groupes'])) {
+            foreach ($consigneData['groupes'] as $groupeData) {
+                $groupe = Consigne_groupe::create([
+                    'consigne_id' => $consigneData['consigne_id'],
+                    'ordre' => $groupeData['ordre']
                 ]);
+
+                foreach ($groupeData['champs'] as $ordre => $nomChamp) {
+                    $nomChamp = strtolower($nomChamp);
+                    if (isset($champs[$nomChamp])) {
+                        Consigne_groupe_champ::create([
+                            'consigne_groupe_id' => $groupe->id,
+                            'champ_id' => $champs[$nomChamp]->id,
+                            'ordre' => $ordre + 1
+                        ]);
+                    }
+                }
             }
         }
 
-        // paramètres
+        // 🎯 PARTIE CORRIGÉE : Enregistrement des paramètres (valeur_defaut)
+        // On utilise updateOrCreate avec codification_id pour ne pas écraser les autres dossiers
         if (!empty($consigneData['parametres'])) {
-
             foreach ($consigneData['parametres'] as $cle => $valeur) {
-
                 Parametre_consigne::updateOrCreate(
                     [
-                        'codification_id' => $codificationId,
+                        'codification_id' => $codificationId, // Filtre par dossier
                         'consigne_id' => $consigneData['consigne_id'],
                         'cle' => $cle
                     ],
                     [
-                        'valeur' => $valeur
+                        'valeur' => $valeur ?? ''
                     ]
                 );
             }
+        }
+    }
+
+    public function edit($codificationId)
+    {
+        // On récupère tous les groupes liés à cette codification
+        $groupes = Consigne_groupe::whereHas('champs.champ', function ($q) use ($codificationId) {
+            $q->where('codification_id', $codificationId);
+        })
+            ->with(['consigne', 'champs.champ'])
+            ->get()
+            ->groupBy('consigne_id'); // On groupe par ID de consigne
+
+        // On récupère TOUS les paramètres de ce dossier
+        $parametresDossier = Parametre_consigne::where('codification_id', $codificationId)
+            ->get()
+            ->groupBy('consigne_id');
+
+        $result = [];
+
+        // On boucle sur chaque type de consigne trouvé
+        foreach ($groupes as $consigneId => $groupesDeLaConsigne) {
+
+            $item = [
+                'consigne_id' => $consigneId,
+                'groupes' => [],
+                'parametres' => []
+            ];
+
+            // 1. Récupérer les paramètres (ex: valeur_defaut NR ou 5)
+            if (isset($parametresDossier[$consigneId])) {
+                foreach ($parametresDossier[$consigneId] as $p) {
+                    $item['parametres'][$p->cle] = $p->valeur;
+                }
+            }
+
+            // 2. Récupérer tous les groupes (sans écraser)
+            foreach ($groupesDeLaConsigne as $groupe) {
+                $item['groupes'][] = [
+                    'ordre' => $groupe->ordre,
+                    'champs' => $groupe->champs->sortBy('ordre')->pluck('champ.nom_champ')->toArray()
+                ];
+            }
+
+            $result[] = $item;
+        }
+
+        return response()->json($result);
+    }
+
+    public function update(Request $request, $codificationId)
+    {
+        DB::beginTransaction();
+        try {
+            // Nettoyage complet du paramétrage existant pour ce dossier
+            $groupesIds = Consigne_groupe::whereHas('champs.champ', function ($q) use ($codificationId) {
+                $q->where('codification_id', $codificationId);
+            })->pluck('id');
+
+            Consigne_groupe_champ::whereIn('consigne_groupe_id', $groupesIds)->delete();
+            Consigne_groupe::whereIn('id', $groupesIds)->delete();
+            Parametre_consigne::where('codification_id', $codificationId)->delete();
+
+            $champs = Champ::where('codification_id', $codificationId)->get()->keyBy('nom_champ');
+
+            foreach ($request->input('consignes', []) as $consigneData) {
+                $this->storeSingleConsigne($consigneData, $champs, $codificationId);
+            }
+
+            DB::commit();
+            return response()->json(['status' => 'OK', 'message' => 'Mise à jour réussie']);
+        } catch (Exception $e) {
+            DB::rollBack();
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 
@@ -264,87 +273,6 @@ class ConsigneController extends Controller
 
 
     }
-
-    public function edit($codificationId)
-    {
-        // récupérer tous les groupes liés aux champs de cette codification
-        $groupes = Consigne_groupe::whereHas('champs.champ', function ($q) use ($codificationId) {
-            $q->where('codification_id', $codificationId);
-        })
-            ->with([
-                'consigne',
-                'champs.champ',
-                'parametres'
-            ])
-            ->get();
-
-        $result = [];
-
-        foreach ($groupes as $groupe) {
-
-            if (!isset($result[$groupe->consigne_id])) {
-
-                $result[$groupe->consigne_id] = [
-                    'consigne_id' => $groupe->consigne_id,
-                    'groupes' => [],
-                    'parametres' => []
-                ];
-
-                // paramètres de consigne
-                foreach ($groupe->parametres as $p) {
-                    $result[$groupe->consigne_id]['parametres'][$p->cle] = $p->valeur;
-                }
-            }
-
-            $result[$groupe->consigne_id]['groupes'][] = [
-                'ordre' => $groupe->ordre_execution,
-                'champs' => $groupe->champs
-                    ->sortBy('ordre')
-                    ->pluck('champ.nom_champ')
-                    ->toArray()
-            ];
-        }
-
-        return response()->json(array_values($result));
-    }
-
-    public function update(Request $request, $codificationId)
-    {
-        // 🧹 Nettoyage ancien paramétrage
-        $groupesIds = Consigne_groupe::whereHas('champs.champ', function ($q) use ($codificationId) {
-            $q->where('codification_id', $codificationId);
-        })->pluck('id');
-        Consigne_groupe_champ::whereIn('consigne_groupe_id', $groupesIds)->delete();
-        Consigne_groupe::whereIn('id', $groupesIds)->delete();
-
-
-        $champs = Champ::where('codification_id', $codificationId)
-            ->get()
-            ->keyBy('nom_champ');
-
-        // Avant de réenregistrer les nouveaux paramètres :supprimmer les anciens enregistrement
-        Parametre_consigne::where('codification_id', $codificationId)->delete();
-
-        // 2️⃣ Réinsérer comme une création
-        /**foreach ($request->parametrage as $consigneData) {
-            $this->storeSingleConsigne($consigneData, $champs, $codificationId);
-        }*/
-
-       /**foreach ($request->input('parametrage', []) as $consigneData) {
-            $this->storeSingleConsigne($consigneData, $champs, $codificationId);
-        }*/
-
-        foreach ($request->input('consignes', []) as $consigneData) {
-            $this->storeSingleConsigne($consigneData, $champs, $codificationId);
-        }
-
-        return response()->json([
-            'status' => 'OK',
-            'message' => 'Paramétrage mis à jour avec succès'
-        ]);
-    }
-
-
 
 
 }
