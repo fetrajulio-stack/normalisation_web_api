@@ -6,19 +6,19 @@ class AjoutSeparateurConsigne implements ConsigneInterface
 {
     public function appliquer(array $ligne, array $champs, array $parametres = []): array
     {
-        // 🔹 Récupération du séparateur (par défaut "; ")
+
+
         $separator = $parametres['separateur'] ?? '; ';
 
         foreach ($champs as $champ) {
 
-            // 🔒 sécurité
             if (!array_key_exists($champ, $ligne)) {
                 continue;
             }
 
             $value = $ligne[$champ];
 
-            // 🔹 Cas 1 : tableau (le plus propre)
+            // 🔹 Cas 1 : tableau
             if (is_array($value)) {
 
                 $ligne[$champ] = implode(
@@ -27,23 +27,36 @@ class AjoutSeparateurConsigne implements ConsigneInterface
                 );
             }
 
-            // 🔹 Cas 2 : string avec séparateurs multiples (ex: ",", ";")
+            // 🔹 Cas 2 : string
             elseif (is_string($value)) {
 
-                // découpage intelligent
-                $parts = preg_split('/[;,]/', $value);
+                $value = trim($value);
 
-                if (is_array($parts)) {
-                    $parts = array_map('trim', $parts);
+                // 🔥 CAS 1 : contient , ou ;
+                if (preg_match('/[,;]/', $value)) {
 
-                    $ligne[$champ] = implode(
-                        $separator,
-                        array_filter($parts)
-                    );
+                    $parts = preg_split('/[;,]/', $value);
+
                 }
-            }
+                // 🔥 CAS 2 : chaîne compacte (ex: "21")
+                elseif (ctype_digit($value) && strlen($value) > 1) {
 
-            // 🔹 Cas 3 : valeur simple → rien à faire
+                    // ⚠️ important : découper caractère par caractère
+                    $parts = str_split($value);
+
+                }
+                else {
+                    continue;
+                }
+
+                // 🔹 nettoyage + reconstruction
+                $parts = array_map('trim', $parts);
+
+                $ligne[$champ] = implode(
+                    $separator,
+                    array_filter($parts)
+                );
+            }
         }
 
         return $ligne;

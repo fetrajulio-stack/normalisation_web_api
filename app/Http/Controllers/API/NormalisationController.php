@@ -320,10 +320,16 @@ class NormalisationController extends Controller
                     }
 
                 } finally {
-                    // 🔥 TOUJOURS fermer la connexion
+                    //  TOUJOURS fermer la connexion
                     if ($cnnS) {
                         odbc_close($cnnS);
                     }
+                    //  important
+                    $cnnS = null;
+                    unset($cnnS);
+
+                    // laisser respirer ODBC
+                    usleep(50000); // 50ms
                 }
             }
         }
