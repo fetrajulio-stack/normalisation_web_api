@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\API\NormalisationController;
 use App\Http\Controllers\API\CodificationController;
+use App\Http\Controllers\API\ExcelMergeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -56,6 +57,7 @@ Route::get('/lots', [\App\Http\Controllers\API\NormalisationController::class, '
 Route::get('/testa', [\App\Http\Controllers\API\NormalisationController::class, 'testa']);
 Route::get('/authtest', [\App\Http\Controllers\API\TestController::class, 'testPg']);
 Route::get('/downloadexcel/{filename}', [\App\Http\Controllers\API\NormalisationController::class, 'downloadExcel']);
-Route::post('datamaps/export', [\App\Http\Controllers\API\DatamapController::class, 'exportToTxt']);
+Route::post('datamaps/export', [\app\Http\Controllers\API\DatamapController::class, 'exportToTxt']);
 Route::get('downloadtxt/{filename}', [App\Http\Controllers\API\DatamapController::class, 'downloadTxt']);
 Route::post('/excel/import', [\App\Http\Controllers\API\NormalisationController::class, 'importExcel']);
+Route::post('/merge-excel', [\App\Http\Controllers\API\ExcelMergeController::class, 'merge']);
