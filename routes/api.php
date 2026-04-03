@@ -35,6 +35,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/list-codifications', [\App\Http\Controllers\API\CodificationController::class, 'listCodification']);
         Route::get('/list-champs', [\App\Http\Controllers\API\CodificationController::class, 'getChampsByCodeDossier']);
         Route::get('/codifications', [\App\Http\Controllers\API\CodificationController::class, 'getId']);
+        Route::get('/nom-lot', [\App\Http\Controllers\API\CodificationController::class, 'getNomLot']);
     });
 
     Route::prefix('consigne')->group(function () {

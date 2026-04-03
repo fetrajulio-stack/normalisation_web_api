@@ -104,5 +104,58 @@ class CodificationController extends Controller
         ]);
     }
 
+    public function getNomLot(Request $request)
+    {
+        $zDossier = $request->query('nom_dossier');
+        $zCode_dossier = $request->query('nom_code_dossier');
+
+        $basePath = config('normalisation.mdb_base_path');
+        $targetPath = $basePath
+            . DIRECTORY_SEPARATOR . $zDossier
+            . DIRECTORY_SEPARATOR . $zCode_dossier;
+
+
+        if (empty($zDossier) || empty($zCode_dossier)) {
+            return response()->json([
+                'message' => 'Paramètres manquants : nom_dossier et nom_code_dossier requis'
+            ], 422);
+        }
+
+
+        try {
+            if (!is_dir($targetPath)) {
+                return response()->json([
+                    'message' => 'Chemin introuvable',
+                    'path' => $targetPath
+                ], 404);
+            }
+
+            $items = array_filter(scandir($targetPath), function ($name) use ($targetPath) {
+                if ($name === '.' || $name === '..') {
+                    return false;
+                }
+                $sub = $targetPath . '\\' . $name;
+                return is_dir($sub);
+            });
+
+            $items = array_values($items);
+            $firstLot = $items[0] ?? null;
+
+            return response()->json([
+                'lot_name' => $firstLot,
+                'path' => $targetPath,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('getNomLot error', [
+                'path' => $targetPath,
+                'message' => $e->getMessage(),
+            ]);
+
+            return response()->json([
+                'message' => 'Erreur serveur lors du listing du dossier',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 
 }
