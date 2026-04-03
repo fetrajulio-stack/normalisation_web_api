@@ -2,6 +2,7 @@
 namespace App\Services;
 
 use App\Services\Consignes\AdresseConcateConsigne;
+use App\Services\Consignes\AjoutSeparateurConsigne;
 use App\Services\Consignes\CompacterConsigne;
 use App\Services\Consignes\ConcatenationConsigne;
 use App\Services\Consignes\DateDayMonthConsigne;
@@ -80,7 +81,11 @@ class ConsigneExecutor
             'INCREMENT' => new IncrementationConsigne(),
             'CONCATENER_CHAMPS' => new ConcatenerChampsConsigne(),
             'EMPTYALWAYS' => new EmptyAlwaysConsigne(),
+
+            'AJOUT_SEPARATEUR' => new AjoutSeparateurConsigne(),
+
             'FILL_EMPTY_DYN' => new FilleemptyDynConsigne(),
+
             default => throw new \Exception("Consigne inconnue : $code")
         };
     }
