@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Services\AccessService;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PDO;
@@ -209,7 +210,7 @@ class NormalisationController extends Controller
             $extention = null;
         }
 
-       // dd($extention);
+
         // récupère la valeur de passe dans parametre.cat
         if(isset($ini['parametre'])){
             $passsword = $ini['parametre']['passe']; // affichera "VO"
@@ -445,9 +446,25 @@ class NormalisationController extends Controller
     public function getNewDataFormat( $tData,$regleFormat,$map )
     {
         $result = [];
-        foreach ($tData as $key => $value) {
 
-            $newKey = $map[$key] ?? $key;
+        foreach ($tData as $key => $value) {
+            //  1. supprimer le b" au début
+            $key = preg_replace('/^b"/', '', $key);
+
+            //  2. supprimer le " à la fin
+            $key = trim($key, '"');
+
+            //  3. corriger encodage
+            $key = mb_convert_encoding($key, 'UTF-8', 'Windows-1252');
+
+            $key = Str::ascii($key);
+            $key = strtolower($key);
+            $key = preg_replace('/[^a-z0-9_]/', '_', $key);
+            //  NORMALISATION
+            $normalizedKey = $this->normalizeKey($key);
+
+            //  mapping avec clé normalisée
+            $newKey = $map[$normalizedKey] ?? $normalizedKey;
 
             if (isset($regleFormat[$newKey])) {
                 $value = $regleFormat[$newKey]($value);
@@ -455,7 +472,8 @@ class NormalisationController extends Controller
 
             $result[$newKey] = $value;
         }
-        return $result;
+
+        return $result;;
     }
 
     public function normaliser($codification_id)
@@ -962,6 +980,23 @@ class NormalisationController extends Controller
         $path = storage_path('app/public/Exports/' . $filename);
 
         return response()->download($path);
+    }
+
+    function normalizeKey($key)
+    {
+        //  convertir en UTF-8 propre
+        $key = mb_convert_encoding($key, 'UTF-8', 'Windows-1252');
+
+        //  supprimer accents (FIABLE)
+        $key = Str::ascii($key);
+
+        //  minuscule
+        $key = strtolower($key);
+
+        //  remplacer séparateurs
+        $key = str_replace([' ', '-', '.'], '_', $key);
+
+        return $key;
     }
 
 }

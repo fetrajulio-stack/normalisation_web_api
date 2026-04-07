@@ -3,32 +3,35 @@
 namespace App\Services\Consignes;
 
 class ExtraireNomLotConsigne implements ConsigneInterface
-
 {
     public function appliquer(array $ligne, array $champs, array $parametres = []): array
     {
-        // 1. Récupération du nom du lot
-        $nomLot = $parametres['nom_lot'] ?? ($ligne['nom_lot'] ?? '');
+        $source = 'n_lot'; // Source fixe
 
-        // 2. Récupération dynamique des réglages depuis ta table parametre_consignes
-        // On utilise les clés que l'on voit sur ton image PHPMyAdmin
+        // PRIORITÉ :
+        // 1. Un champ cible défini dans les paramètres
+        // 2. Le premier champ coché dans le groupe (ex: nom_association)
+        $cible = $parametres['champ_cible'] ?? ($champs[0] ?? null);
+
+        // Paramètres dynamiques
         $separateur = $parametres['separateur'] ?? '_';
-        $position = isset($parametres['position']) ? (int)$parametres['position'] : 3;
+        $position = isset($parametres['position']) ? (int)$parametres['position'] : 0;
 
-        if (empty($nomLot)) {
+        if (!$cible || !isset($ligne[$source])) {
             return $ligne;
         }
 
-        // 3. Logique d'extraction dynamique
-        // On découpe selon le séparateur défini en base (ex: '_')
-        $parties = explode($separateur, $nomLot);
+        $valeurSource = trim((string)$ligne[$source]);
 
-        // On récupère la partie à la position demandée (ex: index 3 pour la 4ème partie)
-        $resultat = isset($parties[$position]) ? trim($parties[$position]) : '';
+        if ($valeurSource === "") {
+            return $ligne;
+        }
 
-        // 4. Définition du champ cible
-        $champCible = $parametres['champ_cible'] ?? ($champs[0] ?? 'nom_extrait');
-        $ligne[$champCible] = $resultat;
+        // Découpage dynamique
+        $parties = explode($separateur, $valeurSource);
+
+        // Assignation à la cible (ex: nom_association prend la valeur extraite)
+        $ligne[$cible] = isset($parties[$position]) ? trim($parties[$position]) : '';
 
         return $ligne;
     }
