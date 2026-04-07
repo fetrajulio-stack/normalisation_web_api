@@ -4,31 +4,43 @@ namespace App\Services\Consignes;
 
 class ConcatenerChampsConsigne implements ConsigneInterface
 {
-    /**
-     * Fusionne plusieurs champs dans un seul.
-     * Exemple : ["Nom", "Prénom"] -> "Nom Prénom"
-     */
     public function appliquer(array $ligne, array $champs, array $parametres = []): array
     {
-        $valeurs = [];
+        // 1. Destination (ex: nom_prenom)
+        $champDestination = $parametres['separateur'] ?? 'nom_prenom';
+        $valeursADecomposer = [];
 
-        // On récupère le séparateur depuis la base (ex: id 51 sur votre image)
-        $separateur = $parametres['separateur'] ?? ' ';
-
-        // On boucle sur les champs sources (ex: ['nom', 'prenom'])
+        // 2. Parcourir tous les champs sélectionnés dans tes groupes (Ordre 1, Ordre 2...)
         foreach ($champs as $champ) {
-            if (isset($ligne[$champ]) && trim($ligne[$champ]) !== '') {
-                $valeurs[] = trim($ligne[$champ]);
+            // Détection flexible de la colonne (gère NOM, nom, Nom...)
+            $cleTrouvee = null;
+            if (array_key_exists($champ, $ligne)) {
+                $cleTrouvee = $champ;
+            } elseif (array_key_exists(strtoupper($champ), $ligne)) {
+                $cleTrouvee = strtoupper($champ);
+            } elseif (array_key_exists(strtolower($champ), $ligne)) {
+                $cleTrouvee = strtolower($champ);
+            }
+
+            if ($cleTrouvee) {
+                $valeur = trim((string)$ligne[$cleTrouvee]);
+
+                // On n'ajoute que si la case n'est pas vide
+                if ($valeur !== "" && strtolower($valeur) !== "null") {
+                    $valeursADecomposer[] = $valeur;
+                }
+
+                // 3. SUPPRESSION de la colonne source (ex: NOM ou PRENOM)
+                unset($ligne[$cleTrouvee]);
             }
         }
 
-        // On fusionne avec le séparateur choisi
-        $resultat = implode($separateur, $valeurs);
-
-        // On définit le champ de destination (ex: 'Nom_prénom')
-        $champCible = $parametres['champ_cible'] ?? 'champ_fusionne';
-
-        $ligne[$champCible] = $resultat;
+        // 4. Fusion avec un espace et création de la nouvelle colonne
+        if (!empty($valeursADecomposer)) {
+            $ligne[$champDestination] = implode(' ', $valeursADecomposer);
+        } else {
+            $ligne[$champDestination] = '';
+        }
 
         return $ligne;
     }
