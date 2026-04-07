@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\Datamap;
+use App\Models\Champ;
 use App\Services\FixedLengthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -12,87 +13,94 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 class DatamapController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Récupère la liste des datamaps pour une codification donnée
      */
- public function index(Request $request)
-{
-    $query = Datamap::with(['champ']);
+    public function index(Request $request)
+    {
+        $query = Datamap::with('champ');
 
-    if ($request->filled('codification_id')) {
-        $query->where('codification_id', $request->codification_id);
-    }
-
-    $datamaps = $query->get()->map(function ($item) {
-        return [
-            'idq' => $item->champ->nom_champ, // 🔥 IMPORTANT
-            'position' => $item->position,
-            'longueur' => $item->longueur,
-        ];
-    });
-
-    return response()->json([
-        'datamap' => $datamaps
-    ]);
-}
-
-    /**
-     * Store a newly created resource in storage.
-     */
-public function store(Request $request)
-{
-    $request->validate([
-        'codification_id' => 'required|exists:codifications,id',
-        'datamap' => 'required|array',
-        'datamap.*.position' => 'required|integer|min:0',
-        'datamap.*.longueur' => 'required|integer|min:1',
-        'datamap.*.idq' => 'required|string'
-    ]);
-
-    DB::beginTransaction();
-
-    try {
-
-        // 🔥 1. Supprimer les anciens datamaps
-        Datamap::where('codification_id', $request->codification_id)->delete();
-
-        $bulkData = [];
-
-        foreach ($request->datamap as $item) {
-
-            $champ = \App\Models\Champ::where('nom_champ', $item['idq'])->first();
-
-            if (!$champ) continue;
-
-            $bulkData[] = [
-                'position' => $item['position'],
-                'longueur' => $item['longueur'],
-                'codification_id' => $request->codification_id,
-                'champ_id' => $champ->id,
-                'created_at' => now(),
-                'updated_at' => now()
-            ];
+        if ($request->filled('codification_id')) {
+            $query->where('codification_id', $request->codification_id);
         }
 
-        // ⚡ Insert en masse (rapide)
-        Datamap::insert($bulkData);
-
-        DB::commit();
+        $datamaps = $query->get()->map(function ($item) {
+            return [
+                'idq' => $item->champ->nom_champ,
+                'position' => $item->position,
+                'longueur' => $item->longueur,
+            ];
+        });
 
         return response()->json([
-            'status' => 'success',
-            'message' => 'Datamap remplacé avec succès'
+            'datamap' => $datamaps
+        ]);
+    }
+
+    /**
+     * Crée ou met à jour des datamaps
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'codification_id' => 'required|exists:codifications,id',
+            'datamap' => 'required|array',
+            'datamap.*.position' => 'required|integer|min:0',
+            'datamap.*.longueur' => 'required|integer|min:1',
+            'datamap.*.idq' => 'required|string'
         ]);
 
-    } catch (\Exception $e) {
+        DB::beginTransaction();
 
-        DB::rollBack();
+        try {
+            foreach ($request->datamap as $item) {
+                $champ = Champ::where('nom_champ', $item['idq'])->first();
 
-        return response()->json([
-            'status' => 'error',
-            'message' => $e->getMessage()
-        ], 500);
+                if (!$champ) {
+                    // Champ inexistant → ignore
+                    continue;
+                }
+
+                // Update or create selon codification_id + champ_id
+                Datamap::updateOrCreate(
+                    [
+                        'codification_id' => $request->codification_id,
+                        'champ_id' => $champ->id
+                    ],
+                    [
+                        'position' => $item['position'],
+                        'longueur' => $item['longueur']
+                    ]
+                );
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Datamap enregistré avec succès'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
     }
-}
+
+    /**
+     * Normaliser les noms de colonnes pour correspondre à ceux de la base de données
+     */
+    private function normalizeColumnName(string $name): string
+    {
+        $name = mb_strtolower($name);                  // tout en minuscules
+        $name = str_replace([' ', '-', '/', '='], '_', $name); // remplacer espaces, - / = par _
+        $name = preg_replace('/_+/', '_', $name);     // supprimer doublons de _
+        $name = trim($name, '_');                     // enlever les _ au début et fin
+        return $name;
+    }
 
     /**
      * Display the specified resource.
@@ -145,75 +153,71 @@ public function store(Request $request)
 
 
     /**
-     * Exporte un fichier CSV vers un format texte à longueur fixe
+     * Export TXT à longueur fixe via FixedLengthService
      */
     public function exportToTxt(Request $request, FixedLengthService $service)
     {
         try {
-            // 1. Validation
             $request->validate([
                 'codification_id' => 'required',
                 'nom_code_dossier' => 'required|string'
             ]);
 
+            $datamapConfig = Datamap::with('champ')
+                ->where('codification_id', $request->codification_id)
+                ->orderBy('position')
+                ->get();
+
+            if ($datamapConfig->isEmpty()) {
+                return response()->json(['error' => 'Aucun paramétrage (Datamap) trouvé pour cet ID'], 404);
+            }
+
             $fileNameExcel = $request->nom_code_dossier . '.xlsx';
             $filePath = storage_path('app/public/Exports/' . $fileNameExcel);
 
             if (!file_exists($filePath)) {
-                return response()->json(['error' => "Fichier Excel introuvable sur le serveur : $fileNameExcel"], 404);
+                return response()->json(['error' => "Fichier Excel introuvable : $fileNameExcel"], 404);
             }
 
-            // 2. Config Datamap
-            $config = Datamap::with('champ')
-                ->where('codification_id', $request->codification_id)
-                ->orderBy('position', 'asc')
-                ->get();
-
-            if ($config->isEmpty()) {
-                return response()->json(['error' => "Aucun paramétrage (Datamap) trouvé pour cet ID"], 404);
-            }
-
-            // 3. Lecture Excel
             $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
             $sheet = $spreadsheet->getActiveSheet();
             $rows = $sheet->toArray();
 
-            $headers = array_shift($rows);
-            $headers = array_map(fn($h) => strtoupper(trim(strval($h))), $headers);
+            $headers = array_map(fn($h) => strtoupper(trim(strval($h))), array_shift($rows));
 
             $records = [];
             foreach ($rows as $row) {
                 if (count(array_filter($row)) > 0) {
                     $fullRow = [];
-                    foreach ($headers as $index => $headerName) {
-                        $fullRow[$headerName] = isset($row[$index]) ? trim(strval($row[$index])) : '';
+                    foreach ($headers as $i => $headerName) {
+                        $fullRow[$headerName] = isset($row[$i]) ? trim(strval($row[$i])) : '';
                     }
 
                     $filteredData = [];
-                    foreach ($config as $mapItem) {
-                        $nomCible = strtoupper(trim($mapItem->champ->nom_champ));
+                    foreach ($datamapConfig as $mapItem) {
+                        // Normalisation du nom de la colonne
+                        $nomCible = $this->normalizeColumnName(strtoupper(trim($mapItem->champ->nom_champ)));
                         $valeur = '';
 
-                        // On cherche la colonne qui correspond (ex: Q1 trouve Q1_SEXE)
                         foreach ($fullRow as $keyExcel => $valExcel) {
-                            if ($keyExcel === $nomCible || str_starts_with($keyExcel, $nomCible . '_')) {
+                            $keyExcelNorm = $this->normalizeColumnName($keyExcel);
+                            if ($keyExcelNorm === $nomCible) {
                                 $valeur = $valExcel;
                                 break;
                             }
                         }
+
                         $filteredData[$mapItem->champ->nom_champ] = $valeur;
                     }
+
                     $records[] = (object) $filteredData;
                 }
             }
 
-            // 4. Génération
-            $content = $service->generate($config, collect($records));
+            $content = $service->generate($datamapConfig, collect($records));
 
-            // 5. Enregistrement sécurisé
             $fileNameTxt = $request->nom_code_dossier . '.txt';
 
-            // Vérifier si le dossier existe, sinon le créer
             if (!\Illuminate\Support\Facades\Storage::disk('local')->exists('public/Exports')) {
                 \Illuminate\Support\Facades\Storage::disk('local')->makeDirectory('public/Exports');
             }
@@ -225,27 +229,22 @@ public function store(Request $request)
                 'filename' => $fileNameTxt
             ]);
 
-
-
-
-
         } catch (\Exception $e) {
-            // C'est ça qui va empêcher l'erreur 500 et te dire ce qui ne va pas
             return response()->json(['error' => "Erreur PHP : " . $e->getMessage()], 500);
         }
     }
 
-
-    public function downloadTxt($filename) {
-        // Utilise storage_path pour être sûr de l'endroit
+    /**
+     * Téléchargement du fichier TXT généré
+     */
+    public function downloadTxt($filename)
+    {
         $path = storage_path('app/public/Exports/' . $filename);
 
         if (!file_exists($path)) {
-            // Debug : si ça 404, on veut savoir où il a cherché
-            return response()->json(['error' => "Fichier introuvable à : " . $path], 404);
+            return response()->json(['error' => "Fichier introuvable à : $path"], 404);
         }
 
-        // Le headers 'Content-Disposition' force le téléchargement sans changer de page
         return response()->download($path, $filename, [
             'Content-Type' => 'text/plain',
         ]);
