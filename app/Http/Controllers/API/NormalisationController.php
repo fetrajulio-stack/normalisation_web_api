@@ -14,7 +14,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Services\AccessService;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PDO;
@@ -60,13 +59,13 @@ class NormalisationController extends Controller
             . DIRECTORY_SEPARATOR . $zDossier
             . DIRECTORY_SEPARATOR . $zCode_dossier
             . DIRECTORY_SEPARATOR . 'Parametre.mdb';
-          //  dd($zCheminParametreMdb);
+        //  dd($zCheminParametreMdb);
         /************************************ */
         //$pdo = AccessService::connect("D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\parametre.mdb",null,null);
         $pdo = AccessService::connect($zCheminParametreMdb,null,null);
 
         $sourceRows = $pdo->query(" SELECT idq FROM LIVRAISON ORDER BY ordreq ASC")->fetchAll(PDO::FETCH_ASSOC);
-    //    dd($sourceRows);
+        //    dd($sourceRows);
         $tableName = 'source';
         Schema::dropIfExists($tableName);
 
@@ -85,7 +84,7 @@ class NormalisationController extends Controller
                 $text_utf8 = mb_convert_encoding( $row['idq'] , 'UTF-8', 'Windows-1252');
 
                 $colName = $this->normalizer->normalizeFieldName($text_utf8);
-                 $default = isset($row['defaut']) ? $row['defaut'] : "";
+                $default = isset($row['defaut']) ? $row['defaut'] : "";
                 if (is_numeric($default)) {
                     $table->integer($colName)->default($default);
                 } else {
@@ -97,13 +96,13 @@ class NormalisationController extends Controller
         });
 
         // Insérer ligne par défaut
-       /** $insertData = [];
+        /** $insertData = [];
         foreach ($sourceRows as $row) {
-            $colName = str_replace(' ', '_', $row['idq']);
-            $insertData[$colName] = $row['Defaut'] ?? null;
+        $colName = str_replace(' ', '_', $row['idq']);
+        $insertData[$colName] = $row['Defaut'] ?? null;
         }
         DB::table($tableName)->insert($insertData);
-        */
+         */
         return response()->json(['message' => 'Table SOURCE importée avec succès !']);
 
     }
@@ -128,7 +127,7 @@ class NormalisationController extends Controller
 
         // Fonction récursive pour parcourir le répertoire
         $allData = $this->getMdbFiles($networkPath);
-         //   dd($allData);
+        //   dd($allData);
         return response()->json($allData);
     }
 
@@ -165,10 +164,10 @@ class NormalisationController extends Controller
 //dd($zDossier . DIRECTORY_SEPARATOR . $zCode_dossier);
         //$basepathProdcution = env('NORMALISATION_BASE_PATH');
         $basepathProdcution = config('normalisation.mdb_base_path');
-      //dd("prod base path : " . $basepathProdcution);
+        //dd("prod base path : " . $basepathProdcution);
 
         $basePath = config('normalisation.base_path');
-       //dd($basePath);
+        //dd($basePath);
 
         $cheminLot = $basepathProdcution
             . DIRECTORY_SEPARATOR . $zDossier
@@ -179,21 +178,21 @@ class NormalisationController extends Controller
             . DIRECTORY_SEPARATOR . $zCode_dossier
             . DIRECTORY_SEPARATOR . 'Parametre.cat';
 
-          //  dd($cheminLot);
+        //  dd($cheminLot);
         /************************************ */
 
         //$livraisonPath = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\Normalisation\livraison.mdb'; // livraison.mdb
-      //  $cheminLot = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\LOTS';              // chemin parent des LOTS
+        //  $cheminLot = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\LOTS';              // chemin parent des LOTS
 
         //D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\SOURCE
-    //  dd("123");
+        //  dd("123");
         /*************************LECTURE DU FICHIER PARAMETRE.CAT ET RESUPERATION DE L'EXTENSION***************************** */
 
         //$ini = parse_ini_file(
-         //   'D:/DEVELOPPEMENT/PRODUCTION/NORMALISATION/STEFI MEDIAMETRIE/MED-08251-AVATAR-DFEDC-ADULTE/Parametre.cat',
-          //  true
+        //   'D:/DEVELOPPEMENT/PRODUCTION/NORMALISATION/STEFI MEDIAMETRIE/MED-08251-AVATAR-DFEDC-ADULTE/Parametre.cat',
+        //  true
         //);*/
-       // dd($ini);
+        // dd($ini);
 
         //$ini = parse_ini_file('D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\Parametre.cat', true);
         $ini = parse_ini_file($cheminMDBCat);
@@ -210,7 +209,7 @@ class NormalisationController extends Controller
             $extention = null;
         }
 
-
+        // dd($extention);
         // récupère la valeur de passe dans parametre.cat
         if(isset($ini['parametre'])){
             $passsword = $ini['parametre']['passe']; // affichera "VO"
@@ -225,7 +224,7 @@ class NormalisationController extends Controller
 
         /*************************RECUPERATION DES LOTS***************************** */
         $listLots = $this->listLots($cheminLot);
-       // dd($cheminLot);
+        // dd($cheminLot);
         //dd($listLots);
 
         // Filtrer les lots si une sélection a été envoyée par le frontend
@@ -247,7 +246,7 @@ class NormalisationController extends Controller
 
         /*************************************************************************** */
         /************ Connexion PDO vers livraison.mdb puis vider la table source****************************** */
-          //$cnn =  AccessService::connect($livraisonPath,null,null);
+        //$cnn =  AccessService::connect($livraisonPath,null,null);
 
         /**$resdelete = $cnn->exec("DELETE FROM SOURCE"); // vide la table*/
 
@@ -448,23 +447,9 @@ class NormalisationController extends Controller
         $result = [];
 
         foreach ($tData as $key => $value) {
-            //  1. supprimer le b" au début
-            $key = preg_replace('/^b"/', '', $key);
+          //  $key = self::normalizeKey($key);
 
-            //  2. supprimer le " à la fin
-            $key = trim($key, '"');
-
-            //  3. corriger encodage
-            $key = mb_convert_encoding($key, 'UTF-8', 'Windows-1252');
-
-            $key = Str::ascii($key);
-            $key = strtolower($key);
-            $key = preg_replace('/[^a-z0-9_]/', '_', $key);
-            //  NORMALISATION
-            $normalizedKey = $this->normalizeKey($key);
-
-            //  mapping avec clé normalisée
-            $newKey = $map[$normalizedKey] ?? $normalizedKey;
+            $newKey = $map[$key] ?? $key;
 
             if (isset($regleFormat[$newKey])) {
                 $value = $regleFormat[$newKey]($value);
@@ -472,8 +457,8 @@ class NormalisationController extends Controller
 
             $result[$newKey] = $value;
         }
-
-        return $result;;
+      //  dd($result);
+        return $result;
     }
 
     public function normaliser($codification_id)
@@ -521,7 +506,7 @@ class NormalisationController extends Controller
                     $champs = $groupe->champs
                         ->map(fn($gc) => strtolower($gc->champ->nom_champ))
                         ->toArray();
-                   //     dd($champs);
+                    //     dd($champs);
                     // Récupère les paramètres de la consigne
                     $parametres = $consigne->parametres->pluck('valeur', 'cle')->toArray();
 
@@ -546,11 +531,11 @@ class NormalisationController extends Controller
         /************************************************************* */
 
 
-       //Excel::store(new NormalisationExport($rowsForExport), $filePath, 'public');
-       Excel::store(new NormalisationExport($rowsForExport, $dossier), $filePath, 'public');
+        //Excel::store(new NormalisationExport($rowsForExport), $filePath, 'public');
+        Excel::store(new NormalisationExport($rowsForExport, $dossier), $filePath, 'public');
 
-       /** Drop table source */
-       // Schema::dropIfExists('source');
+        /** Drop table source */
+        // Schema::dropIfExists('source');
 
         return response()->json([
             'status' => 'OK',
@@ -561,8 +546,8 @@ class NormalisationController extends Controller
         ]);
 
         /**return Excel::download(
-            new NormalisationExport($rowsForExport),
-            $codeDossier . '.xlsx'
+        new NormalisationExport($rowsForExport),
+        $codeDossier . '.xlsx'
         );*/
 
     }
@@ -585,7 +570,7 @@ class NormalisationController extends Controller
             $tableName = $request->input('tableName', 'data_import');
 
             // Générer un nom de fichier unique
-           // $filename = time() . '_' . $file->getClientOriginalName();
+            // $filename = time() . '_' . $file->getClientOriginalName();
             $filename = $file->getClientOriginalName();
             $filenameWithoutExt = pathinfo($filename, PATHINFO_FILENAME); // Nom sans extension
             $jsonFilename = $filenameWithoutExt . '.json';
@@ -982,19 +967,32 @@ class NormalisationController extends Controller
         return response()->download($path);
     }
 
-    function normalizeKey($key)
+    public function normalizeKey($key)
     {
-        //  convertir en UTF-8 propre
+        // 🔥 1. supprimer le b" au début
+        $key = preg_replace('/^b"/', '', $key);
+
+        // 🔥 2. supprimer le " à la fin
+        $key = trim($key, '"');
+
+        // 🔥 3. corriger encodage
         $key = mb_convert_encoding($key, 'UTF-8', 'Windows-1252');
 
-        //  supprimer accents (FIABLE)
-        $key = Str::ascii($key);
+        // 🔥 4. enlever accents (SAFE)
+        $key = @transliterator_transliterate(
+            'Any-Latin; Latin-ASCII',
+            $key
+        );
 
-        //  minuscule
+        // 🔥 fallback si transliterator échoue
+        if (!$key) {
+            $key = iconv('UTF-8', 'ASCII//IGNORE', $key);
+        }
+
+        // 🔥 5. nettoyage final
         $key = strtolower($key);
-
-        //  remplacer séparateurs
         $key = str_replace([' ', '-', '.'], '_', $key);
+        $key = preg_replace('/[^a-z0-9_]/', '', $key);
 
         return $key;
     }

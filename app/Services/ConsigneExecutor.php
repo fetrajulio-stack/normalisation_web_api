@@ -19,6 +19,7 @@ use App\Services\Consignes\FillemptyNineConsigne;
 use App\Services\Consignes\FillemptyNrConsigne;
 
 
+use App\Services\Consignes\FillIfNotEmptyConsigne;
 use App\Services\Consignes\UppercaseNoAccentConsigne;
 use App\Services\Consignes\PrefixAfaConsigne;
 use App\Services\Consignes\PrefixAssociationFaConsigne;
@@ -85,6 +86,7 @@ class ConsigneExecutor
             'AJOUT_SEPARATEUR' => new AjoutSeparateurConsigne(),
 
             'FILL_EMPTY_DYN' => new FilleemptyDynConsigne(),
+            'EMPTY_PUT_VALUE' => new FillIfNotEmptyConsigne(),
 
             default => throw new \Exception("Consigne inconnue : $code")
         };
