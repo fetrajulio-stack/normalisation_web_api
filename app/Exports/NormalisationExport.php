@@ -17,6 +17,20 @@ class NormalisationExport implements FromArray, WithHeadings
         $this->dossier = strtoupper($dossier);
     }
 
+    private function isStefi(): bool
+    {
+        return trim($this->dossier) === 'STEFI MEDIAMETRIE';
+    }
+
+    private function stefiColumnsToRemove(): array
+    {
+        return [
+            'QUESTIONNAIRE',
+            'PARIS_1_IVRY_2_LILLE_LOMME_3',
+            'SEANCE_4_SEANCES'
+        ];
+    }
+
     public function array(): array
     {
         $data = [];
@@ -29,11 +43,21 @@ class NormalisationExport implements FromArray, WithHeadings
             // 🔹 supprimer colonnes inutiles
             unset($ligne['created_at'], $ligne['updated_at']);
 
+            // 🔹 suppression spécifique STEFI
+            if ($this->isStefi()) {
+                $columnsToRemove = array_map('strtolower', $this->stefiColumnsToRemove());
+                foreach ($ligne as $key => $value) {
+                    if (in_array(strtolower($key), $columnsToRemove, true)) {
+                        unset($ligne[$key]);
+                    }
+                }
+            }
+
             // 🔹 N_ENR
             $ligne['n_enr'] = str_pad($compteur, 4, '0', STR_PAD_LEFT);
 
             // 🔹 logique STEFI
-            if (strtoupper(trim($this->dossier)) === 'STEFI MEDIAMETRIE') {
+            if ($this->isStefi()) {
 
                 $nLot = $ligne['n_lot'] ?? '';
 
@@ -65,33 +89,30 @@ class NormalisationExport implements FromArray, WithHeadings
         return $data;
     }
 
+    public function headings(): array
+    {
+        // 🔥 sécurité : forcer le traitement si pas encore fait
+        if (empty($this->processedData)) {
+            $this->array();
+        }
 
- public function headings(): array
-{
-    if (empty($this->data)) {
-        return [];
+        if (empty($this->processedData)) {
+            return [];
+        }
+
+        // 🔥 utiliser les colonnes réellement présentes
+        $headings = array_keys($this->processedData[0]);
+
+        return array_map(function ($heading) {
+            return strtoupper($heading);
+        }, $headings);
     }
-
-    // 🔥 supprimer les colonnes inutiles des en-têtes
-    $headings = array_keys($this->data[0]);
-
-    $headings = array_filter($headings, function ($col) {
-        return !in_array($col, ['created_at', 'updated_at']);
-    });
-
-    return array_map(function ($heading) {
-        return strtoupper($heading);
-    }, $headings);
-}
-
-
 
     // ✅ Mettre la première ligne en GRAS
     public function styles(Worksheet $sheet)
     {
         return [
-            1 => ['font' => ['bold' => true]], // ligne 1 en gras
+            1 => ['font' => ['bold' => true]],
         ];
     }
-
 }

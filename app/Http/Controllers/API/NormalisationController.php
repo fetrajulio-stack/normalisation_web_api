@@ -75,7 +75,7 @@ class NormalisationController extends Controller
             $table->string('n_ima')->nullable()->default(null);
             $table->string('n_enr')->nullable()->default(null);
 
-            if (strtoupper(trim($zDossier)) === 'STEFI MEDIAMETRIE') {
+           if (strtoupper(trim($zDossier)) === 'STEFI MEDIAMETRIE') {
                 $table->string('ville')->nullable()->default(null);
                 $table->string('seance')->nullable()->default(null);
             }
