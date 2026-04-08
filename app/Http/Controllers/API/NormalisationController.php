@@ -447,7 +447,7 @@ class NormalisationController extends Controller
         $result = [];
 
         foreach ($tData as $key => $value) {
-          //  $key = self::normalizeKey($key);
+            $key = self::normalizeKey($key);
 
             $newKey = $map[$key] ?? $key;
 
@@ -457,7 +457,7 @@ class NormalisationController extends Controller
 
             $result[$newKey] = $value;
         }
-      //  dd($result);
+       // dd($result);
         return $result;
     }
 
@@ -990,9 +990,9 @@ class NormalisationController extends Controller
         }
 
         // 🔥 5. nettoyage final
-        $key = strtolower($key);
-        $key = str_replace([' ', '-', '.'], '_', $key);
-        $key = preg_replace('/[^a-z0-9_]/', '', $key);
+      ///  $key = strtolower($key);
+        ///$key = str_replace([' ', '-', '.'], '_', $key);
+      ///  $key = preg_replace('/[^a-z0-9_]/', '', $key);
 
         return $key;
     }
