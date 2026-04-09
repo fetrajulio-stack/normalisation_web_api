@@ -26,11 +26,11 @@ class CodificationController extends Controller
 
     public function listCodification()
     {
-        $dossiers = Dossier::with('cathegories')
+        $dossiers = Dossier::with(['cathegories' => function($query) {
+            $query->orderBy('id_code_dossier', 'asc');
+        }])
             ->orderBy('nom_dossier', 'asc')
-            //->orderBy('code_dossier', 'desc')
             ->get();
-
         // Transformation propre → tableau
         $array = $dossiers->toArray();
         /**foreach ($array as $row) {
