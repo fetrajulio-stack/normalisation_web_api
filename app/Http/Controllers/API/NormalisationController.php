@@ -30,6 +30,69 @@ class NormalisationController extends Controller
         $this->tabFilter = $tabFilter;
     }
 
+    private function applyLibelleMapping(array $row, array $map): array
+    {
+        foreach ($row as $key => $value) {
+
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            // 🔥 Normalisation de la clé
+            // q5_1 → Q5-1
+            $normalizedKey = strtoupper(str_replace('_', '-', $key));
+
+            if (isset($map[$normalizedKey])) {
+
+                // Cas valeur simple (ex: "3")
+                if (is_numeric($value)) {
+                    $num = (int)$value;
+
+                    if (isset($map[$normalizedKey][$num])) {
+                       // $row[$key] = $map[$normalizedKey][$num];
+                        $row[$key] = $this->fixEncoding($map[$normalizedKey][$num]);
+                    }
+                }
+
+                // 🔥 BONUS : gérer multi-choix (ex: "1;3;5")
+                elseif (strpos($value, ';') !== false) {
+
+                    $values = explode(';', $value);
+                    $labels = [];
+
+                    foreach ($values as $v) {
+                        $v = trim($v);
+
+                        if (is_numeric($v) && isset($map[$normalizedKey][(int)$v])) {
+                            $labels[] = $map[$normalizedKey][(int)$v];
+                        }
+                    }
+
+                    if (!empty($labels)) {
+                        $row[$key] = implode('; ', $labels);
+                    }
+                }
+            }
+        }
+
+        return $row;
+    }
+
+    private function fixEncoding($value)
+    {
+        if (!is_string($value)) {
+            return $value;
+        }
+
+        // Détecter si déjà UTF-8 valide
+        if (mb_detect_encoding($value, 'UTF-8', true)) {
+            return $value;
+        }
+
+        // Sinon convertir depuis Windows-1252 / ISO
+        return mb_convert_encoding($value, 'UTF-8', 'Windows-1252');
+    }
+
     public function test()
     {
 
@@ -158,6 +221,14 @@ class NormalisationController extends Controller
     public function importMdb(Request $request)
     {
 
+
+        $useLibelle = (int)($request->input('libelle', 0)) === 1;
+        // Charger le mapping UNE SEULE FOIS
+        $listeChoixMap = [];
+        if ($useLibelle) {
+            $listeChoixMap = $this->getListeChoix($request)->getData(true);
+        }
+
         /************************************ */
         $zDossier = $request->nom_dossier ?? "";
         $zCode_dossier = $request->nom_code_dossier ?? "";
@@ -284,6 +355,11 @@ class NormalisationController extends Controller
                             $tMysqlSourceFields
                         );
 
+                        // 🔥 Appliquer les libellés si demandé
+                        if ($useLibelle) {
+                            $filtered = $this->applyLibelleMapping($filtered, $listeChoixMap);
+                        }
+
                         $batch[] = $filtered;
 
                         if (count($batch) >= 500) {
@@ -294,17 +370,23 @@ class NormalisationController extends Controller
 
                     if (!empty($batch)) {
 
-                        foreach ($batch as $row) {
+                        
 
+                        foreach ($batch as $row) {
+                            if ($useLibelle) {
+                                $row = $this->applyLibelleMapping($row, $listeChoixMap);
+                            }
                             foreach ($row as $key => $value) {
                                 if (is_string($value)) {
                                     $value = preg_replace('/^\s*b"/', '', $value);
                                     $value = trim($value, '"');
-                                    $row[$key] = mb_convert_encoding(
+                                    /*$row[$key] = mb_convert_encoding(
                                         $value,
                                         'UTF-8',
                                         ['Windows-1252', 'ISO-8859-1', 'UTF-8']
-                                    );
+                                    );*/
+                                   // 🔥 Correction ENCODAGE (remplace mb_convert_encoding)
+                                   $row[$key] = $this->fixEncoding($value); 
                                 }
                             }
 
@@ -623,7 +705,8 @@ class NormalisationController extends Controller
 
                         // Encoder en UTF-8 si nécessaire
                         if (is_string($value)) {
-                            $value = mb_convert_encoding($value, 'UTF-8', ['Windows-1252', 'ISO-8859-1', 'UTF-8']);
+                            //$value = mb_convert_encoding($value, 'UTF-8', ['Windows-1252', 'ISO-8859-1', 'UTF-8']);
+                            $value = $this->fixEncoding($value);
                             $value = trim($value);
                         }
 
@@ -649,7 +732,8 @@ class NormalisationController extends Controller
 
                             // Encoder en UTF-8 si nécessaire
                             if (is_string($value)) {
-                                $value = mb_convert_encoding($value, 'UTF-8', ['Windows-1252', 'ISO-8859-1', 'UTF-8']);
+                                $value = $this->fixEncoding($value);
+                                //$value = mb_convert_encoding($value, 'UTF-8', ['Windows-1252', 'ISO-8859-1', 'UTF-8']);
                                 $value = trim($value);
                             }
 
@@ -995,6 +1079,65 @@ class NormalisationController extends Controller
       ///  $key = preg_replace('/[^a-z0-9_]/', '', $key);
 
         return $key;
+    }
+
+
+    public function getListeChoix(Request $request)
+    {
+        $zDossier = $request->nom_dossier ?? "";
+        $zCode_dossier = $request->nom_code_dossier ?? "";
+
+        $basePath = config('normalisation.base_path');
+        $zCheminParametreMdb = $basePath
+            . DIRECTORY_SEPARATOR . $zDossier
+            . DIRECTORY_SEPARATOR . $zCode_dossier
+            . DIRECTORY_SEPARATOR . 'Parametre.mdb';
+
+        $pdo = AccessService::connect($zCheminParametreMdb, null, null);
+
+        $rows = $pdo->query("
+            SELECT idq, listechoix 
+            FROM LIVRAISON 
+            ORDER BY ordreq ASC
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        $result = [];
+
+        foreach ($rows as $row) {
+
+            // Encodage propre
+            $idq = $this->fixEncoding($row['idq']);
+            //$idq = trim(mb_convert_encoding($row['idq'], 'UTF-8', 'Windows-1252'));
+            $listechoix = $row['listechoix'];
+
+            // Ignorer les lignes vides (ex: Q3-autre)
+            if (empty($listechoix)) {
+                continue;
+            }
+
+            // Conversion encodage
+            //$listechoix = mb_convert_encoding($listechoix, 'UTF-8', 'Windows-1252');
+            $listechoix = $this->fixEncoding($listechoix);
+
+            // Séparer par #
+            $choixArray = explode('#', $listechoix);
+
+            foreach ($choixArray as $choix) {
+
+                $choix = trim($choix);
+
+                // Séparer numéro et valeur (ex: "1. texte")
+                if (preg_match('/^(\d+)\.\s*(.*)$/', $choix, $matches)) {
+
+                    $numero = (int)$matches[1];
+                    $valeur = trim($matches[2]);
+
+                    $result[$idq][$numero] = $valeur;
+                }
+            }
+        }
+
+        return response()->json($result);
     }
 
 }
