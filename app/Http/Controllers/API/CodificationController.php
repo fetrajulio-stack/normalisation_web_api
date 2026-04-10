@@ -33,12 +33,18 @@ class CodificationController extends Controller
             ->get();
         // Transformation propre → tableau
         $array = $dossiers->toArray();
-        /**foreach ($array as $row) {
-            json_encode($row);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                dd($row);
+
+        foreach ($array as &$dossier) {
+            if (!empty($dossier['cathegories'])) {
+
+                usort($dossier['cathegories'], function ($a, $b) {
+                    return strcmp($a['code_dossier'], $b['code_dossier']);
+                });
+
             }
-        }*/
+        }
+
+        //dd($array);
         // Conversion UTF-8 récursive
         $array = $this->encodingService->utf8EncodeRecursive($array);
 
@@ -68,10 +74,10 @@ class CodificationController extends Controller
             . DIRECTORY_SEPARATOR . 'Parametre.mdb';
         //$pdo = AccessService::connect("D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\Normalisation\parametre.mdb",null,null);
           $pdo = AccessService::connect($zCheminParametreMdb,null,null);
-        
+
         //$sourceRows = $pdo->query(" SELECT idq FROM LIVRAISON ORDER BY ordreq ASC")->fetchAll(PDO::FETCH_ASSOC);
 
-           /**DEBUT: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */ 
+           /**DEBUT: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */
             $stmt = $pdo->query("SELECT * FROM [LIVRAISON]");
             $columns = [];
             for ($i = 0; $i < $stmt->columnCount(); $i++) {
@@ -96,7 +102,7 @@ class CodificationController extends Controller
             }
             // Exécution
             $sourceRows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
-           /**FIN: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */ 
+           /**FIN: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */
 
         $sourceRows = $this->encodingService->utf8EncodeRecursive($sourceRows);
 
