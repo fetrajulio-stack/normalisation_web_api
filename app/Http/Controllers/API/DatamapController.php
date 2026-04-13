@@ -183,7 +183,7 @@ class DatamapController extends Controller
             $sheet = $spreadsheet->getActiveSheet();
             $rows = $sheet->toArray();
 
-            $headers = array_map(fn($h) => strtoupper(trim(strval($h))), array_shift($rows));
+            $headers = array_map(fn($h) => strtolower(trim(strval($h))), array_shift($rows));
 
             $records = [];
             foreach ($rows as $row) {
@@ -196,7 +196,7 @@ class DatamapController extends Controller
                     $filteredData = [];
                     foreach ($datamapConfig as $mapItem) {
                         // Normalisation du nom de la colonne
-                        $nomCible = $this->normalizeColumnName(strtoupper(trim($mapItem->champ->nom_champ)));
+                        $nomCible = $this->normalizeColumnName(strtolower(trim($mapItem->champ->nom_champ)));
                         $valeur = '';
 
                         foreach ($fullRow as $keyExcel => $valExcel) {
@@ -249,69 +249,5 @@ class DatamapController extends Controller
             'Content-Type' => 'text/plain',
         ]);
     }
-
-
-
-//    public function exportToTxt(Request $request, FixedLengthService $service)
-//    {
-//        // On récupère tout ce qui arrive dans la requête pour le debug
-//        $allInput = $request->all();
-//
-//        $request->validate([
-//            'codification_id' => 'required|exists:datamaps,codification_id',
-//        ]);
-//
-//        // 1. On récupère la configuration (le plan)
-//        $config = \App\Models\Datamap::with('champ')
-//            ->where('codification_id', $request->codification_id)
-//            ->orderBy('position', 'asc')
-//            ->orderBy('id', 'asc')
-//            ->get();
-//
-//        $recordsData = $request->input('records');
-//        $records = collect($recordsData)->map(function($item) {
-//            return (object) $item;
-//        });
-//
-//        // LE DEBUG (On affiche enfin tout proprement)
-////        dd([
-////            'Vérification Request ALL' => $allInput,
-////            'Contenu de RECORDS extrait' => $records,
-////            'Type de RECORDS' => gettype($records),
-////            'Première clé de la CONFIG' => $config->first()->champ->nom_champ ?? 'Pas de config',
-////        ]);
-//
-//        // Le reste du code ne s'exécutera pas tant que le dd() est là
-//        $content = $service->generate($config, $records);
-//
-//        // --- ICI ON ENREGISTRE LE FICHIER ---
-//
-//        // On définit le nom (ex: export_codif_5_20260323_1720.txt)
-//        $fileName = 'export_codif_' . $request->codification_id . '_' . now()->format('Ymd_His') . '.txt';
-//
-//        // Chemin relatif pour le disque 'local' (va dans storage/app/public/Exports/)
-//        $path = 'public/Exports/' . $fileName;
-//
-//        // Enregistrement physique
-//        \Illuminate\Support\Facades\Storage::disk('local')->put($path, $content);
-//
-//        // --- ENFIN, ON RÉPOND ---
-//
-//        // Option A : Si tu veux voir le JSON dans Insomnia avec le chemin
-//        return response()->json([
-//            'status' => 'success',
-//            'message' => 'Fichier généré avec succès',
-//            'file_path' => storage_path('app/' . $path),
-//            'filename' => $fileName,
-//            'preview' => mb_substr($content, 0, 100) . '...' // Petit aperçu
-//        ]);
-//
-//        return response($content)->header('Content-Type', 'text/plain');
-//
-//    }
-
-
-
-
 }
 
