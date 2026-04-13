@@ -338,10 +338,14 @@ class NormalisationController extends Controller
 //dd($mdbFiles);
 
             foreach ($mdbFiles as $filePath) {
-                $cnnS = AccessService::mdbConnect($filePath, $passsword);
-
+              //  $cnnS = AccessService::mdbConnect($filePath, $passsword);
+                $cnnS     = null;
+                $rs       = null;
+                $tempPath = null;
                 try {
-
+                    $result   = AccessService::mdbConnect($filePath, $passsword);
+                    $cnnS     = $result['conn'];
+                    $tempPath = $result['tempPath'];
                     $sqlTravail = "SELECT * FROM Travail ORDER BY TIFF, XORDRE";
                     $rs = odbc_exec($cnnS, $sqlTravail);
 
@@ -370,7 +374,7 @@ class NormalisationController extends Controller
 
                     if (!empty($batch)) {
 
-                        
+
 
                         foreach ($batch as $row) {
                             if ($useLibelle) {
@@ -386,7 +390,7 @@ class NormalisationController extends Controller
                                         ['Windows-1252', 'ISO-8859-1', 'UTF-8']
                                     );*/
                                    // 🔥 Correction ENCODAGE (remplace mb_convert_encoding)
-                                   $row[$key] = $this->fixEncoding($value); 
+                                   $row[$key] = $this->fixEncoding($value);
                                 }
                             }
 
@@ -1096,8 +1100,8 @@ class NormalisationController extends Controller
         $pdo = AccessService::connect($zCheminParametreMdb, null, null);
 
         $rows = $pdo->query("
-            SELECT idq, listechoix 
-            FROM LIVRAISON 
+            SELECT idq, listechoix
+            FROM LIVRAISON
             ORDER BY ordreq ASC
         ")->fetchAll(PDO::FETCH_ASSOC);
 
