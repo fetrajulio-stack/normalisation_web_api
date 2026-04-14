@@ -183,8 +183,8 @@ class DatamapController extends Controller
             $sheet = $spreadsheet->getActiveSheet();
             $rows = $sheet->toArray();
 
-            $headers = array_map(fn($h) => strtoupper(trim(strval($h))), array_shift($rows));
-
+            $headers = array_map(fn($h) => strtolower(trim(strval($h))), array_shift($rows));
+//            dd($headers);
             $records = [];
             foreach ($rows as $row) {
                 if (count(array_filter($row)) > 0) {
@@ -196,7 +196,7 @@ class DatamapController extends Controller
                     $filteredData = [];
                     foreach ($datamapConfig as $mapItem) {
                         // Normalisation du nom de la colonne
-                        $nomCible = $this->normalizeColumnName(strtoupper(trim($mapItem->champ->nom_champ)));
+                        $nomCible = $this->normalizeColumnName(strtolower(trim($mapItem->champ->nom_champ)));
                         $valeur = '';
 
                         foreach ($fullRow as $keyExcel => $valExcel) {

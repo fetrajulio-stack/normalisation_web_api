@@ -16,9 +16,10 @@ class FixedLengthService
 
         foreach ($records as $record) {
             $line = "";
-
             // On convertit l'objet record en tableau avec clés en minuscules
             $data = array_change_key_case((array)$record, CASE_LOWER);
+
+//            var_dump($data);die;
 
             foreach ($config as $map) {
 
