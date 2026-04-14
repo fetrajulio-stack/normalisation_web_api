@@ -127,8 +127,37 @@ class NormalisationController extends Controller
         //$pdo = AccessService::connect("D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\parametre.mdb",null,null);
         $pdo = AccessService::connect($zCheminParametreMdb,null,null);
 
-        $sourceRows = $pdo->query(" SELECT idq FROM LIVRAISON ORDER BY ordreq ASC")->fetchAll(PDO::FETCH_ASSOC);
-        //    dd($sourceRows);
+       // $sourceRows = $pdo->query(" SELECT idq FROM LIVRAISON ORDER BY ordreq ASC")->fetchAll(PDO::FETCH_ASSOC);
+        
+         /**DEBUT: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */
+            $stmt = $pdo->query("SELECT * FROM [LIVRAISON]");
+            $columns = [];
+            for ($i = 0; $i < $stmt->columnCount(); $i++) {
+                $meta = $stmt->getColumnMeta($i);
+                $columns[] = strtolower($meta['name']);
+            }
+
+            // Détection dynamique
+            $orderBy = null;
+
+            if (in_array('ordreq', $columns)) {
+                $orderBy = 'ordreq';
+            } elseif (in_array('ordref', $columns)) {
+                $orderBy = 'ordref';
+            }
+
+            // Construction SQL
+            $sql = "SELECT [idq] FROM [LIVRAISON]";
+
+            if ($orderBy) {
+                $sql .= " ORDER BY [$orderBy] ASC";
+            }
+            // Exécution
+            $sourceRows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+           /**FIN: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */
+        
+
+
         $tableName = 'source';
         Schema::dropIfExists($tableName);
 
