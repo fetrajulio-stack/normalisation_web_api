@@ -37,13 +37,11 @@ class NormalisationExport implements FromArray, WithHeadings
         $compteur = 1;
 
         foreach ($this->data as $ligne) {
-
             $ligne = (array) $ligne;
 
-            // 🔹 supprimer colonnes inutiles
+            // 🔹 Garder tes suppressions
             unset($ligne['created_at'], $ligne['updated_at']);
 
-            // 🔹 suppression spécifique STEFI
             if ($this->isStefi()) {
                 $columnsToRemove = array_map('strtolower', $this->stefiColumnsToRemove());
                 foreach ($ligne as $key => $value) {
@@ -53,13 +51,30 @@ class NormalisationExport implements FromArray, WithHeadings
                 }
             }
 
-            // 🔹 N_ENR
-            $ligne['n_enr'] = str_pad($compteur, 4, '0', STR_PAD_LEFT);
+            // 🔹 LA SEULE DIFFÉRENCE : On cherche la clé avant d'écrire
+            $valeurEnr = str_pad($compteur, 4, '0', STR_PAD_LEFT);
+            $cleEnrTrouvee = false;
 
-            // 🔹 logique STEFI
+            foreach ($ligne as $key => $value) {
+                // Si la clé est N_ENR (ou son nom mappé comme PATATE)
+                if (strtoupper($key) === 'N_ENR' || strtoupper($key) === 'PATATE') {
+                    $ligne[$key] = $valeurEnr; // On écrase la valeur au même endroit
+                    $cleEnrTrouvee = true;
+                    break;
+                }
+            }
+
+            // Si vraiment aucune colonne N_ENR n'existe, on la crée (comportement par défaut)
+            if (!$cleEnrTrouvee) {
+                $ligne['N_ENR'] = $valeurEnr;
+            }
+
+            // 🔹 Garder ta logique STEFI intacte
             if ($this->isStefi()) {
-
-                $nLot = $ligne['n_lot'] ?? '';
+                $nLot = '';
+                foreach($ligne as $k => $v) {
+                    if(strtoupper($k) === 'N_LOT') { $nLot = $v; break; }
+                }
 
                 $ville = '';
                 if (stripos($nLot, 'PARIS') !== false) {
@@ -83,15 +98,13 @@ class NormalisationExport implements FromArray, WithHeadings
             $compteur++;
         }
 
-        // ✅ stocker les données nettoyées
         $this->processedData = $data;
-
         return $data;
     }
 
     public function headings(): array
     {
-        // 🔥 sécurité : forcer le traitement si pas encore fait
+
         if (empty($this->processedData)) {
             $this->array();
         }
@@ -100,7 +113,7 @@ class NormalisationExport implements FromArray, WithHeadings
             return [];
         }
 
-        // 🔥 utiliser les colonnes réellement présentes
+        // Récupération des clés (noms des colonnes)
         $headings = array_keys($this->processedData[0]);
 
         return array_map(function ($heading) {

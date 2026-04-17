@@ -15,8 +15,11 @@ use Illuminate\Support\Facades\DB;
 use App\Services\AccessService;
 use Illuminate\Support\Facades\Schema;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Log;
+use App\Imports\MappingImport;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PDO;
+use function Psr\Log\alert;
 
 
 class NormalisationController extends Controller
@@ -127,8 +130,37 @@ class NormalisationController extends Controller
         //$pdo = AccessService::connect("D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\parametre.mdb",null,null);
         $pdo = AccessService::connect($zCheminParametreMdb,null,null);
 
-        $sourceRows = $pdo->query(" SELECT idq FROM LIVRAISON ORDER BY ordreq ASC")->fetchAll(PDO::FETCH_ASSOC);
-        //    dd($sourceRows);
+       // $sourceRows = $pdo->query(" SELECT idq FROM LIVRAISON ORDER BY ordreq ASC")->fetchAll(PDO::FETCH_ASSOC);
+
+         /**DEBUT: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */
+            $stmt = $pdo->query("SELECT * FROM [LIVRAISON]");
+            $columns = [];
+            for ($i = 0; $i < $stmt->columnCount(); $i++) {
+                $meta = $stmt->getColumnMeta($i);
+                $columns[] = strtolower($meta['name']);
+            }
+
+            // Détection dynamique
+            $orderBy = null;
+
+            if (in_array('ordreq', $columns)) {
+                $orderBy = 'ordreq';
+            } elseif (in_array('ordref', $columns)) {
+                $orderBy = 'ordref';
+            }
+
+            // Construction SQL
+            $sql = "SELECT [idq] FROM [LIVRAISON]";
+
+            if ($orderBy) {
+                $sql .= " ORDER BY [$orderBy] ASC";
+            }
+            // Exécution
+            $sourceRows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+           /**FIN: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */
+
+
+
         $tableName = 'source';
         Schema::dropIfExists($tableName);
 
@@ -338,10 +370,14 @@ class NormalisationController extends Controller
 //dd($mdbFiles);
 
             foreach ($mdbFiles as $filePath) {
-                $cnnS = AccessService::mdbConnect($filePath, $passsword);
-
+              //  $cnnS = AccessService::mdbConnect($filePath, $passsword);
+                $cnnS     = null;
+                $rs       = null;
+                $tempPath = null;
                 try {
-
+                    $result   = AccessService::mdbConnect($filePath, $passsword);
+                    $cnnS     = $result['conn'];
+                    $tempPath = $result['tempPath'];
                     $sqlTravail = "SELECT * FROM Travail ORDER BY TIFF, XORDRE";
                     $rs = odbc_exec($cnnS, $sqlTravail);
 
@@ -370,7 +406,7 @@ class NormalisationController extends Controller
 
                     if (!empty($batch)) {
 
-                        
+
 
                         foreach ($batch as $row) {
                             if ($useLibelle) {
@@ -386,7 +422,7 @@ class NormalisationController extends Controller
                                         ['Windows-1252', 'ISO-8859-1', 'UTF-8']
                                     );*/
                                    // 🔥 Correction ENCODAGE (remplace mb_convert_encoding)
-                                   $row[$key] = $this->fixEncoding($value); 
+                                   $row[$key] = $this->fixEncoding($value);
                                 }
                             }
 
@@ -543,95 +579,83 @@ class NormalisationController extends Controller
         return $result;
     }
 
-    public function normaliser($codification_id)
+    public function normaliser(Request $request)
     {
-        // Récupère toutes les consignes avec leurs groupes et champs
+        // 1. Validation
+        $request->validate([
+            'codification_id' => 'required|numeric',
+            // On s'attend à recevoir le mapping ici si présent
+        ]);
+
+        $codification_id = $request->input('codification_id');
+
+        // On récupère le mapping directement depuis la requête React
+        // Assure-toi que ton front envoie bien un objet "mapping" dans le JSON
+        $mapping = $request->input('mapping_file') ?? null;
+
+        // 2. Préparation des infos dossier (AVANT le mapping pour éviter les erreurs)
+        $codification = Codification::findOrFail($codification_id);
+        $codeDossier = $codification->code_dossier;
+        $dossier = $codification->dossier;
+        $filePath = 'Exports/' . $codeDossier . '.xlsx';
+
+        // 3. Récupération des consignes et traitement (Ton code existant)
         $consignes = Consigne::with([
             'groupes' => function ($qg) use ($codification_id) {
-                $qg->with([
-                    'champs' => function ($qc) use ($codification_id) {
-                        $qc->whereHas('champ', function ($qcc) use ($codification_id) {
-                            $qcc->where('codification_id', $codification_id);
-                        })
-                            ->with('champ');
-                    }
-                ]);
+                $qg->with(['champs' => function ($qc) use ($codification_id) {
+                    $qc->whereHas('champ', function ($qcc) use ($codification_id) {
+                        $qcc->where('codification_id', $codification_id);
+                    })->with('champ');
+                }]);
             },
             'parametres'
-        ])
-            ->whereHas('groupes.champs.champ', function ($q) use ($codification_id) {
-                $q->where('codification_id', $codification_id);
-            })
-            ->get();
+        ])->whereHas('groupes.champs.champ', function ($q) use ($codification_id) {
+            $q->where('codification_id', $codification_id);
+        })->get();
 
-        //   dd($consignes);
         $executor = new ConsigneExecutor();
-
-        // Récupère toutes les lignes de la table source
         $lignes = DB::table('source')->get();
-
         $rowsForExport = [];
 
         foreach ($lignes as $ligne) {
             $data = (array) $ligne;
-
-            // Boucle sur chaque consigne
             foreach ($consignes as $consigne) {
-
-                // Récupère le handler correspondant
                 $handler = $executor->getHandler($consigne->code);
-
-                // Boucle sur chaque groupe de la consigne
                 foreach ($consigne->groupes as $groupe) {
-
-                    // Récupère les noms de champs du groupe dans le bon ordre
-                    $champs = $groupe->champs
-                        ->map(fn($gc) => strtolower($gc->champ->nom_champ))
-                        ->toArray();
-                    //     dd($champs);
-                    // Récupère les paramètres de la consigne
+                    $champs = $groupe->champs->map(fn($gc) => strtolower($gc->champ->nom_champ))->toArray();
                     $parametres = $consigne->parametres->pluck('valeur', 'cle')->toArray();
-
-                    // Applique la consigne sur ce groupe de champs
-
-
                     $data = $handler->appliquer($data, $champs, $parametres);
-
                 }
             }
-
             $rowsForExport[] = $data;
-
         }
 
-        /**************************RECUPERATION DE CODE DOSSIER*********************************** */
-        $codification = Codification::findOrFail($codification_id);
-        $codeDossier = $codification->code_dossier;
-        $dossier = $codification->dossier;
+        // 4. Application du Mapping (si fourni par le Front)
+        if (!empty($mapping)) {
+            $mappingUpper = array_change_key_case($mapping, CASE_UPPER);
+            $mappedRows = [];
+            foreach ($rowsForExport as $row) {
+                $newRow = [];
+                foreach ($row as $key => $value) {
+                    $upperKey = strtoupper($key);
+                    // Si la clé existe dans le mapping, on renomme, sinon on garde l'original
+                    $newKey = $mappingUpper[$upperKey] ?? $key;
+                    $newRow[$newKey] = $value;
+                }
+                $mappedRows[] = $newRow;
+            }
+            $rowsForExport = $mappedRows;
+        }
 
-        $filePath = 'Exports/'.$codeDossier . '.xlsx';
-        /************************************************************* */
-
-
-        //Excel::store(new NormalisationExport($rowsForExport), $filePath, 'public');
+        // 5. Export unique
         Excel::store(new NormalisationExport($rowsForExport, $dossier), $filePath, 'public');
-
-        /** Drop table source */
-        // Schema::dropIfExists('source');
 
         return response()->json([
             'status' => 'OK',
             'message' => 'Fichier Excel généré',
-            'url' => asset('storage/'.$filePath),
-            'path' => storage_path('app/' . $filePath),
+            'url' => asset('storage/' . $filePath),
             'filename' => $codeDossier . '.xlsx'
         ]);
-
-        /**return Excel::download(
-        new NormalisationExport($rowsForExport),
-        $codeDossier . '.xlsx'
-        );*/
-
     }
 
     /**
@@ -943,6 +967,31 @@ class NormalisationController extends Controller
         return $datamaps;
     }
 
+//    public function importMappingClient(Request $request)
+//    {
+//        // On récupère le fichier envoyé par le bouton bleu "Mapping Client"
+//        if ($request->hasFile('mapping_file')) {
+//            $file = $request->file('mapping_file');
+//
+//            // On transforme l'Excel en tableau PHP
+//            $data = Excel::toArray(new MappingImport, $file);
+//
+//            // On stocke en session pour que 'Lancer la normalisation' y ait accès
+//            session(['mapping_client' => $data[0]]);
+//
+//            return response()->json([
+//                'success' => true,
+//                'message' => 'Mapping mémorisé avec succès'
+//            ]);
+//        }
+//
+//        return response()->json(['success' => false, 'message' => 'Aucun fichier reçu']);
+//    }
+
+
+
+
+
     /**
      * Générer le contenu du fichier TXT avec formatage à largeur fixe
      */
@@ -1096,8 +1145,8 @@ class NormalisationController extends Controller
         $pdo = AccessService::connect($zCheminParametreMdb, null, null);
 
         $rows = $pdo->query("
-            SELECT idq, listechoix 
-            FROM LIVRAISON 
+            SELECT idq, listechoix
+            FROM LIVRAISON
             ORDER BY ordreq ASC
         ")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -1139,5 +1188,46 @@ class NormalisationController extends Controller
 
         return response()->json($result);
     }
+
+    public function importMappingClient(Request $request)
+    {
+        if ($request->hasFile('mapping_file')) {
+            $file = $request->file('mapping_file');
+
+            // 1. On crée l'instance
+            $import = new \App\Imports\MappingImport();
+
+            // 2. On lance l'import
+            Excel::import($import, $file);
+
+            // 3. On récupère les lignes grâce à la méthode qu'on a ajoutée
+            $rows = $import->getImportedData();
+
+            $mapping = [];
+            if ($rows) {
+                foreach ($rows as $row) {
+                    // Attention : WithHeadingRow transforme les noms en "slug"
+                    // (ex: "NOM CLIENT" devient "nom_client")
+                    $prod = $row['prod'] ?? $row['PROD'] ?? null;
+                    $client = $row['client'] ?? $row['CLIENT'] ?? null;
+
+                    if ($prod && $client) {
+                        $mapping[trim($prod)] = trim($client);
+                    }
+                }
+            }
+
+            session(['mapping_file' => $mapping]);
+            session()->put('debug_session', 'La session fonctionne');
+            session()->save();
+
+            return response()->json([
+                'success' => true,
+                'count' => count($mapping),
+                'debug_mapping' => $mapping // Pour voir immédiatement si c'est vide
+            ]);
+        }
+    }
+
 
 }

@@ -50,7 +50,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('/parametre/datamap', \App\Http\Controllers\API\DatamapController::class);
 
-    Route::post('/normalisation/{codification_id}', [\App\Http\Controllers\API\NormalisationController::class, 'normaliser']);
+    Route::post('/normalisation/normalise', [\App\Http\Controllers\API\NormalisationController::class, 'normaliser']);
     Route::get('/normalise', [\App\Http\Controllers\API\NormalisationController::class, 'importParametre']);
 });
 
@@ -69,3 +69,4 @@ Route::get('/parametre/datamap', [DatamapController::class, 'index']);
 Route::post('/excel/import', [\App\Http\Controllers\API\NormalisationController::class, 'importExcel']);
 Route::post('/merge-excel', [\App\Http\Controllers\API\ExcelMergeController::class, 'merge']);
 
+Route::post('/import-mapping-client', [\App\Http\Controllers\API\NormalisationController::class, 'importMappingClient']);
