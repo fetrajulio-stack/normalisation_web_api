@@ -113,15 +113,16 @@ class NormalisationExport implements FromArray, WithHeadings
             return [];
         }
 
-        // Récupération des clés (noms des colonnes)
+
         $headings = array_keys($this->processedData[0]);
 
         return array_map(function ($heading) {
+
             return strtoupper($heading);
         }, $headings);
     }
 
-    // ✅ Mettre la première ligne en GRAS
+
     public function styles(Worksheet $sheet)
     {
         return [
