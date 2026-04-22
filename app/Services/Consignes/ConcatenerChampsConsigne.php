@@ -6,42 +6,70 @@ class ConcatenerChampsConsigne implements ConsigneInterface
 {
     public function appliquer(array $ligne, array $champs, array $parametres = []): array
     {
-        // 1. Destination (ex: nom_prenom)
         $champDestination = $parametres['separateur'] ?? 'nom_prenom';
+
         $valeursADecomposer = [];
+        $clesASupprimer = [];
+        $positionInsertion = null;
 
-        // 2. Parcourir tous les champs sélectionnés dans tes groupes (Ordre 1, Ordre 2...)
+        $keys = array_keys($ligne);
+
+        // 🔹 1. Récupérer les valeurs + position
         foreach ($champs as $champ) {
-            // Détection flexible de la colonne (gère NOM, nom, Nom...)
-            $cleTrouvee = null;
-            if (array_key_exists($champ, $ligne)) {
-                $cleTrouvee = $champ;
-            } elseif (array_key_exists(strtoupper($champ), $ligne)) {
-                $cleTrouvee = strtoupper($champ);
-            } elseif (array_key_exists(strtolower($champ), $ligne)) {
-                $cleTrouvee = strtolower($champ);
-            }
 
-            if ($cleTrouvee) {
-                $valeur = trim((string)$ligne[$cleTrouvee]);
+            foreach ($keys as $index => $key) {
 
-                // On n'ajoute que si la case n'est pas vide
-                if ($valeur !== "" && strtolower($valeur) !== "null") {
-                    $valeursADecomposer[] = $valeur;
+                if (strtolower($key) === strtolower($champ)) {
+
+                    // 📌 position du premier champ (nom)
+                    if ($positionInsertion === null) {
+                        $positionInsertion = $index;
+                    }
+
+                    $valeur = trim((string)$ligne[$key]);
+
+                    if ($valeur !== "" && strtolower($valeur) !== "null") {
+                        $valeursADecomposer[] = $valeur;
+                    }
+
+                    $clesASupprimer[] = $key;
                 }
-
-                // 3. SUPPRESSION de la colonne source (ex: NOM ou PRENOM)
-                unset($ligne[$cleTrouvee]);
             }
         }
 
-        // 4. Fusion avec un espace et création de la nouvelle colonne
-        if (!empty($valeursADecomposer)) {
-            $ligne[$champDestination] = implode(' ', $valeursADecomposer);
-        } else {
-            $ligne[$champDestination] = '';
+        // 🔹 2. Supprimer les champs source
+        foreach ($clesASupprimer as $cle) {
+            unset($ligne[$cle]);
         }
 
-        return $ligne;
+        // 🔹 3. Construire valeur fusionnée
+        $valeurFusionnee = !empty($valeursADecomposer)
+            ? implode(' ', $valeursADecomposer)
+            : '';
+
+        // 🔹 4. Si aucune position trouvée → fallback
+        if ($positionInsertion === null) {
+            $ligne[$champDestination] = $valeurFusionnee;
+            return $ligne;
+        }
+
+        // 🔹 5. Insérer à la bonne position
+        $resultat = [];
+        $i = 0;
+
+        foreach ($ligne as $key => $value) {
+            if ($i === $positionInsertion) {
+                $resultat[$champDestination] = $valeurFusionnee;
+            }
+            $resultat[$key] = $value;
+            $i++;
+        }
+
+        // 🔹 6. Sécurité (si fin)
+        if ($positionInsertion >= count($ligne)) {
+            $resultat[$champDestination] = $valeurFusionnee;
+        }
+
+        return $resultat;
     }
 }
