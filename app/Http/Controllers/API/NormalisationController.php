@@ -33,6 +33,21 @@ class NormalisationController extends Controller
         $this->tabFilter = $tabFilter;
     }
 
+    private function normalizeKeyClient($value)
+    {
+         $value = trim($value);
+        $value = strtoupper($value);
+
+        // remplace tout ce qui n'est pas lettre/num par underscore
+        $value = preg_replace('/[^A-Z0-9]+/', '_', $value);
+
+        // supprime les underscores multiples
+        $value = preg_replace('/_+/', '_', $value);
+
+        return trim($value, '_');
+    }
+
+
     private function applyLibelleMapping(array $row, array $map): array
     {
         foreach ($row as $key => $value) {
@@ -190,14 +205,6 @@ class NormalisationController extends Controller
             $table->timestamps();
         });
 
-        // Insérer ligne par défaut
-        /** $insertData = [];
-        foreach ($sourceRows as $row) {
-        $colName = str_replace(' ', '_', $row['idq']);
-        $insertData[$colName] = $row['Defaut'] ?? null;
-        }
-        DB::table($tableName)->insert($insertData);
-         */
         return response()->json(['message' => 'Table SOURCE importée avec succès !']);
 
     }
@@ -1212,6 +1219,8 @@ class NormalisationController extends Controller
                     $client = $row['client'] ?? $row['CLIENT'] ?? null;
 
                     if ($prod && $client) {
+                        // NORMALISATION IMPORTANTE
+                        $prod = $this->normalizeKeyClient($prod);
                         $mapping[trim($prod)] = trim($client);
                     }
                 }
