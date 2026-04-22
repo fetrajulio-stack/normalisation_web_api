@@ -4,42 +4,61 @@ namespace App\Services\Consignes;
 
 class SiAutreChampRenseigneConsigne implements ConsigneInterface
 {
-    /**
-     * Applique la logique de substitution et suppression
-     * Test 3 : Déclencheur vide -> Substitution systématique si source pleine
-     * Tests 1, 2, 4 : Déclencheur rempli -> Substitution si Cible == Déclencheur
-     */
     public function appliquer(array $ligne, array $champs, array $parametres = []): array
     {
         $cible = $parametres['champ_principal'] ?? null;
         $source = $parametres['champ_autre'] ?? null;
 
-        // Sécurité sur le déclencheur pour éviter le "1" résiduel
         $rawDeclic = $parametres['valeur_declencheuse'] ?? "";
-        if ($rawDeclic === true || $rawDeclic === 1 || $rawDeclic === "1" && !isset($parametres['valeur_declencheuse'])) {
-            $declic = "";
-        } else {
-            $declic = trim((string)$rawDeclic);
-        }
+        $declic = trim((string)$rawDeclic);
 
-        // Si les colonnes n'existent pas dans la ligne, on ne touche à rien
-        if (!$cible || !$source || !array_key_exists($source, $ligne)) {
+        if (!$cible || !$source) {
             return $ligne;
         }
 
-        $valeurCible = trim((string)($ligne[$cible] ?? ""));
-        $valeurSource = trim((string)($ligne[$source] ?? ""));
+        $cleCible = null;
+        $cleSource = null;
 
-        // On n'agit que si la source contient une information
-        if ($valeurSource !== "") {
-            // Logique de décision
-            if ($declic !== 1 || $valeurCible === $declic) {
-                $ligne[$cible] = $valeurSource;
+        // 🔹 Détection ULTRA robuste (gère -, _, casse)
+        foreach ($ligne as $key => $value) {
+
+            $keyNorm = strtolower(str_replace(['-', '_'], '', $key));
+            $sourceNorm = strtolower(str_replace(['-', '_'], '', $source));
+            $cibleNorm  = strtolower(str_replace(['-', '_'], '', $cible));
+
+            if ($keyNorm === $cibleNorm) {
+                $cleCible = $key;
+            }
+
+            if ($keyNorm === $sourceNorm) {
+                $cleSource = $key;
             }
         }
 
-        // NETTOYAGE : On supprime la colonne source (PK) du fichier final
-        unset($ligne[$source]);
+        // Si source introuvable → rien à faire
+        if (!$cleSource) {
+            return $ligne;
+        }
+
+        $valeurSource = trim((string)($ligne[$cleSource] ?? ""));
+        $valeurCible  = trim((string)($ligne[$cleCible] ?? ""));
+
+        // 🔹 Transfert
+        if ($valeurSource !== "") {
+            if ($declic === "" || $valeurCible === $declic) {
+                $ligne[$cleCible] = $valeurSource;
+            }
+        }
+
+        // 🔥 SUPPRESSION FORCÉE (toutes variantes possibles)
+        foreach ($ligne as $key => $v) {
+            $keyNorm = strtolower(str_replace(['-', '_'], '', $key));
+            $sourceNorm = strtolower(str_replace(['-', '_'], '', $source));
+
+            if ($keyNorm === $sourceNorm) {
+                unset($ligne[$key]);
+            }
+        }
 
         return $ligne;
     }
