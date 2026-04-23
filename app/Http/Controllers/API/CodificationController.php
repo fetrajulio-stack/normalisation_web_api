@@ -72,46 +72,57 @@ class CodificationController extends Controller
             . DIRECTORY_SEPARATOR . $zDossier
             . DIRECTORY_SEPARATOR . $zCode_dossier
             . DIRECTORY_SEPARATOR . 'Parametre.mdb';
-        
-         // $pdo = AccessService::connect($zCheminParametreMdb,null,null);
+
+        // dd($basePath, $zCheminParametreMdb);
+
+        $systemExploitation = env('SYSTEM_EXPLOITATION');
+
+        if ($systemExploitation === 'Windows') {
+            $pdo = AccessService::connect($zCheminParametreMdb,null,null);
 
            /**DEBUT: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */
-            /*
+            
             $stmt = $pdo->query("SELECT * FROM [LIVRAISON]");
             $columns = [];
             for ($i = 0; $i < $stmt->columnCount(); $i++) {
                 $meta = $stmt->getColumnMeta($i);
                 $columns[] = strtolower($meta['name']);
             }
-            */
-             $columns = AccessService::getColumns($zCheminParametreMdb, 'LIVRAISON');
+        }
+        else {
+            $columns = AccessService::getColumns($zCheminParametreMdb, 'LIVRAISON');
+        }
+        
+        // Détection dynamique
+        $orderBy = null;
 
-            // Détection dynamique
-            $orderBy = null;
+        if (in_array('ordreq', $columns)) {
+            $orderBy = 'ordreq';
+        } elseif (in_array('ordref', $columns)) {
+            $orderBy = 'ordref';
+        }
+        $sourceRows = [];
+        // Construction SQL
+        $sql = "SELECT [idq] FROM [LIVRAISON]";
 
-            if (in_array('ordreq', $columns)) {
-                $orderBy = 'ordreq';
-            } elseif (in_array('ordref', $columns)) {
-                $orderBy = 'ordref';
-            }
-
-            // Construction SQL
-            $sql = "SELECT [idq] FROM [LIVRAISON]";
-
-            if ($orderBy) {
-                $sql .= " ORDER BY [$orderBy] ASC";
-            }
-            // Exécution
-            //$sourceRows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
-            $rawRows = AccessService::query($zCheminParametreMdb, $sql);
-
-            $sourceRows = [];
-            foreach ($rawRows as $row) {
+        if ($orderBy) {
+            $sql .= " ORDER BY [$orderBy] ASC";
+        }
+        // Exécution
+        if ($systemExploitation === 'Windows') {
+           $sourceRows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+           // dd($sourceRows);
+        }else{
+           $rawRows = AccessService::query($zCheminParametreMdb, $sql);
+           foreach ($rawRows as $row) {
                 // Comme on a sélectionné uniquement 'idq', chaque ligne est la valeur de idq
                 $sourceRows[] = ['idq' => trim($row)];
             }
+        }
+       
+        
             
-           /**FIN: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */
+        /**FIN: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */
 
         $sourceRows = $this->encodingService->utf8EncodeRecursive($sourceRows);
 
