@@ -235,7 +235,7 @@ class NormalisationController extends Controller
         } else {
             $columns = AccessService::getColumns($zCheminParametreMdb, 'LIVRAISON');
         }
-
+dd($columns);
         // Détection dynamique du tri
         $orderBy = null;
         if (in_array('ordreq', $columns)) {
