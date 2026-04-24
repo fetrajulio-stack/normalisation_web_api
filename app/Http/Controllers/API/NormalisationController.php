@@ -1138,7 +1138,7 @@ class NormalisationController extends Controller
     }
 
 
-    public function getListeChoix(Request $request)
+    /*public function getListeChoix(Request $request)
     {
         $zDossier = $request->nom_dossier ?? "";
         $zCode_dossier = $request->nom_code_dossier ?? "";
@@ -1185,6 +1185,96 @@ class NormalisationController extends Controller
                 // Séparer numéro et valeur (ex: "1. texte")
                 if (preg_match('/^(\d+)\.\s*(.*)$/', $choix, $matches)) {
 
+                    $numero = (int)$matches[1];
+                    $valeur = trim($matches[2]);
+
+                    $result[$idq][$numero] = $valeur;
+                }
+            }
+        }
+
+        return response()->json($result);
+    }*/
+
+    public function getListeChoix(Request $request)
+    {
+        $zDossier = $request->nom_dossier ?? "";
+        $zCode_dossier = $request->nom_code_dossier ?? "";
+
+        $basePath = config('normalisation.base_path');
+        $zCheminParametreMdb = $basePath
+            . DIRECTORY_SEPARATOR . $zDossier
+            . DIRECTORY_SEPARATOR . $zCode_dossier
+            . DIRECTORY_SEPARATOR . 'Parametre.mdb';
+
+        $systemExploitation = env('SYSTEM_EXPLOITATION');
+        $columns = [];
+        $pdo = null;
+
+        // 1. Détection des colonnes pour le tri (ordreq vs ordref)
+        if ($systemExploitation === 'Windows') {
+            $pdo = AccessService::connect($zCheminParametreMdb, null, null);
+            $stmt = $pdo->query("SELECT TOP 1 * FROM [LIVRAISON]");
+            for ($i = 0; $i < $stmt->columnCount(); $i++) {
+                $meta = $stmt->getColumnMeta($i);
+                $columns[] = strtolower($meta['name']);
+            }
+        } else {
+            $columns = AccessService::getColumns($zCheminParametreMdb, 'LIVRAISON');
+        }
+
+        $orderBy = null;
+        if (in_array('ordreq', $columns)) {
+            $orderBy = 'ordreq';
+        } elseif (in_array('ordref', $columns)) {
+            $orderBy = 'ordref';
+        }
+
+        // 2. Construction de la requête SQL
+        $sql = "SELECT [idq], [listechoix] FROM [LIVRAISON]";
+        if ($orderBy) {
+            $sql .= " ORDER BY [$orderBy] ASC";
+        }
+
+        // 3. Récupération des données selon la plateforme
+        $rows = [];
+        if ($systemExploitation === 'Windows') {
+            $rows = $pdo->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
+        } else {
+            $rawRows = AccessService::query($zCheminParametreMdb, $sql);
+            foreach ($rawRows as $line) {
+                // mdb-sql avec le délimiteur '||'
+                $parts = explode('||', $line);
+                if (count($parts) >= 2) {
+                    $rows[] = [
+                        'idq' => trim($parts[0]),
+                        'listechoix' => trim($parts[1])
+                    ];
+                }
+            }
+        }
+
+        // 4. Traitement et formatage des données
+        $result = [];
+        foreach ($rows as $row) {
+            // Encodage et nettoyage
+            $idq = $this->fixEncoding($row['idq']);
+            $listechoix = $row['listechoix'];
+
+            if (empty($listechoix)) {
+                continue;
+            }
+
+            $listechoix = $this->fixEncoding($listechoix);
+
+            // Séparer les choix par #
+            $choixArray = explode('#', $listechoix);
+
+            foreach ($choixArray as $choix) {
+                $choix = trim($choix);
+
+                // Regex pour extraire "1. Texte"
+                if (preg_match('/^(\d+)\.\s*(.*)$/', $choix, $matches)) {
                     $numero = (int)$matches[1];
                     $valeur = trim($matches[2]);
 
