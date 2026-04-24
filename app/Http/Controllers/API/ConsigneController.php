@@ -212,7 +212,7 @@ class ConsigneController extends Controller
      * SIMULATION import MDB
      * A remplacer par votre logique existante
      */
-    private function importFromMdb($codificationId, $zDossier, $zCode_dossier)
+    /*private function importFromMdb($codificationId, $zDossier, $zCode_dossier)
     {
         $basePath = config('normalisation.base_path');
         $zCheminParametreMdb = $basePath
@@ -234,7 +234,7 @@ class ConsigneController extends Controller
         //$sourceRows = $pdo->query(" SELECT idq FROM LIVRAISON ORDER BY ordreq ASC")->fetchAll(PDO::FETCH_ASSOC);
 
         /**DEBUT: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */
-            $stmt = $pdo->query("SELECT * FROM [LIVRAISON]");
+        /*    $stmt = $pdo->query("SELECT * FROM [LIVRAISON]");
             $columns = [];
             for ($i = 0; $i < $stmt->columnCount(); $i++) {
                 $meta = $stmt->getColumnMeta($i);
@@ -260,7 +260,7 @@ class ConsigneController extends Controller
             $sourceRows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
            /**FIN: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */
         
-        $sourceRows = $this->encodingService->utf8EncodeRecursive($sourceRows);
+        /*$sourceRows = $this->encodingService->utf8EncodeRecursive($sourceRows);
 
         // Ajouter les champs supplémentaires n_lot, n_ima, n_enr
         $extraChamps = ['n_lot', 'n_ima', 'n_enr','ville', 'seance'];
@@ -300,6 +300,100 @@ class ConsigneController extends Controller
         ]);
 
 
+    }*/
+
+        private function importFromMdb($codificationId, $zDossier, $zCode_dossier)
+    {
+        $basePath = config('normalisation.base_path');
+        $zCheminParametreMdb = $basePath
+            . DIRECTORY_SEPARATOR . $zDossier
+            . DIRECTORY_SEPARATOR . $zCode_dossier
+            . DIRECTORY_SEPARATOR . 'Parametre.mdb';
+
+        // ✅ Vérification existence fichier        
+        if (!file_exists($zCheminParametreMdb)) {
+            return response()->json([
+                'status' => 'ERROR',
+                'message' => 'Fichier Parametre.mdb introuvable',
+                'chemin' => $zCheminParametreMdb
+            ], 404);
+        }
+
+        $systemExploitation = env('SYSTEM_EXPLOITATION');
+        $columns = [];
+
+        // 1. Récupération des colonnes selon l'OS pour détecter le tri
+        if ($systemExploitation === 'Windows') {
+            $pdo = AccessService::connect($zCheminParametreMdb, null, null);
+            $stmt = $pdo->query("SELECT * FROM [LIVRAISON]");
+            for ($i = 0; $i < $stmt->columnCount(); $i++) {
+                $meta = $stmt->getColumnMeta($i);
+                $columns[] = strtolower($meta['name']);
+            }
+        } else {
+            $columns = AccessService::getColumns($zCheminParametreMdb, 'LIVRAISON');
+        }
+
+        // Détection dynamique du champ de tri
+        $orderBy = null;
+        if (in_array('ordreq', $columns)) {
+            $orderBy = 'ordreq';
+        } elseif (in_array('ordref', $columns)) {
+            $orderBy = 'ordref';
+        }
+
+        // Construction SQL (Note : tu n'as sélectionné que 'idq', 'defaut' n'existera pas dans le résultat)
+        $sql = "SELECT [idq] FROM [LIVRAISON]";
+        if ($orderBy) {
+            $sql .= " ORDER BY [$orderBy] ASC";
+        }
+
+        $sourceRows = [];
+
+        // 2. Exécution selon l'OS
+        if ($systemExploitation === 'Windows') {
+            $sourceRows = $pdo->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
+        } else {
+            $rawRows = AccessService::query($zCheminParametreMdb, $sql);
+            foreach ($rawRows as $row) {
+                $sourceRows[] = ['idq' => trim($row)];
+            }
+        }
+
+        // Encodage
+        $sourceRows = $this->encodingService->utf8EncodeRecursive($sourceRows);
+
+        // Ajouter les champs supplémentaires
+        $extraChamps = ['n_lot', 'n_ima', 'n_enr', 'ville', 'seance'];
+
+        foreach ($extraChamps as $champ) {
+            Champ::updateOrCreate(
+                [
+                    'nom_champ' => $champ,
+                    'codification_id' => $codificationId
+                ],
+                ['valeur_defaut' => null]
+            );
+        }
+
+        // Insertion des champs issus de la MDB
+        foreach ($sourceRows as $row) {
+            Champ::updateOrCreate(
+                [
+                    'nom_champ' => $this->normalizer->normalizeFieldName($row['idq']),
+                    'codification_id' => $codificationId
+                ],
+                [
+                    // Attention : comme tu fais un "SELECT [idq]", $row['defaut'] n'existe pas ici.
+                    'valeur_defaut' => $row['defaut'] ?? null 
+                ]
+            );
+        }
+
+        return response()->json([
+            'status' => 'OK',
+            'message' => 'Champs importés avec succès'
+        ]);
     }
 
 
