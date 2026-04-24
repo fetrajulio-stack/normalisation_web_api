@@ -1,8 +1,8 @@
-# DatamapController Implementation Plan
+# Task: Add OS-specific blocks (empty) to getChampsByCodeDossier in CodificationController
 
 ## Steps:
-- [x] Step 1: Create `app/Http/Controllers/API/DatamapController.php` with full CRUD (index, store, show, update, destroy) including validation and relations.
-- [x] Step 2: Add API routes for DatamapController in `routes/api.php` under auth:sanctum (apiResource).
-- [x] Step 3: Verify implementation and attempt completion.
-
-**Status**: All steps completed. DatamapController ready with full CRUD API at `/api/datamap` (auth protected).
+- [x] 1. Create TODO.md with plan ✓
+- [x] 2. Edit app/Http/Controllers/API/CodificationController.php ✓
+- [x] 3. Update TODO.md ✓
+- [ ] 4. Test manually: Add `SYSTEM_EXPLOITATION=Windows|Linux` to `.env`, restart server, call endpoint.
+- [x] Plan approved ✓

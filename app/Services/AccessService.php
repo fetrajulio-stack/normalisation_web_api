@@ -12,6 +12,36 @@ class AccessService
         );
     }
 
+     public static function query($path, $sql)
+    {
+        // $path = storage_path('app/test3.mdb');
+        // On utilise mdb-sql.
+        // -H : pas d'entêtes
+        // -P : pas de pagination (une seule ligne continue)
+        // -d : délimiteur personnalisé pour le split
+        $command = "echo " . escapeshellarg($sql) . " | mdb-sql -H -P -d '||' " . escapeshellarg($path);
+
+        exec($command, $output, $returnCode);
+
+        if ($returnCode !== 0) {
+            return [];
+        }
+
+        // On nettoie le résultat pour en faire un tableau associatif
+        // Note: mdb-sql avec -H ne renvoie pas les noms des colonnes.
+        return $output;
+    }
+
+    public static function getColumns($path, $table)
+    {
+        // Récupère uniquement la première ligne (les noms des colonnes) via mdb-export
+        $command = "mdb-export -i " . escapeshellarg($path) . " " . escapeshellarg($table) . " | head -n 1";
+        $line = shell_exec($command);
+        if (!$line) return [];
+
+        return array_map('strtolower', str_getcsv(trim($line)));
+    }
+
     public static function mdbConnect_old($path, $password = '')
     {
         $connStr = "Driver={Microsoft Access Driver (*.mdb, *.accdb)};Dbq=$path;";
