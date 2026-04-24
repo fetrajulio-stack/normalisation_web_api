@@ -129,10 +129,10 @@ class NormalisationController extends Controller
     }
 
 
-    public function importParametre(Request $request)
+    /*public function importParametre(Request $request)
     {
         /************************************ */
-        $zDossier = $request->nom_dossier ?? "";
+     /*   $zDossier = $request->nom_dossier ?? "";
         $zCode_dossier = $request->nom_code_dossier ?? "";
 
         $basePath = config('normalisation.base_path');
@@ -143,12 +143,12 @@ class NormalisationController extends Controller
         //  dd($zCheminParametreMdb);
         /************************************ */
         //$pdo = AccessService::connect("D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\parametre.mdb",null,null);
-        $pdo = AccessService::connect($zCheminParametreMdb,null,null);
+    /*    $pdo = AccessService::connect($zCheminParametreMdb,null,null);
 
        // $sourceRows = $pdo->query(" SELECT idq FROM LIVRAISON ORDER BY ordreq ASC")->fetchAll(PDO::FETCH_ASSOC);
 
          /**DEBUT: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */
-            $stmt = $pdo->query("SELECT * FROM [LIVRAISON]");
+     /*       $stmt = $pdo->query("SELECT * FROM [LIVRAISON]");
             $columns = [];
             for ($i = 0; $i < $stmt->columnCount(); $i++) {
                 $meta = $stmt->getColumnMeta($i);
@@ -176,7 +176,7 @@ class NormalisationController extends Controller
 
 
 
-        $tableName = 'source';
+   /*     $tableName = 'source';
         Schema::dropIfExists($tableName);
 
         Schema::create($tableName, function (Blueprint $table) use ($sourceRows, $zDossier) {
@@ -207,6 +207,103 @@ class NormalisationController extends Controller
 
         return response()->json(['message' => 'Table SOURCE importée avec succès !']);
 
+    }*/
+
+        public function importParametre(Request $request)
+    {
+        $zDossier = $request->nom_dossier ?? "";
+        $zCode_dossier = $request->nom_code_dossier ?? "";
+
+        $basePath = config('normalisation.base_path');
+        $zCheminParametreMdb = $basePath
+            . DIRECTORY_SEPARATOR . $zDossier
+            . DIRECTORY_SEPARATOR . $zCode_dossier
+            . DIRECTORY_SEPARATOR . 'Parametre.mdb';
+
+        $systemExploitation = env('SYSTEM_EXPLOITATION');
+        $columns = [];
+        $pdo = null;
+
+        // 1. Détection des colonnes disponibles (ordreq/ordref et defaut)
+        if ($systemExploitation === 'Windows') {
+            $pdo = AccessService::connect($zCheminParametreMdb, null, null);
+            $stmt = $pdo->query("SELECT TOP 1 * FROM [LIVRAISON]");
+            for ($i = 0; $i < $stmt->columnCount(); $i++) {
+                $meta = $stmt->getColumnMeta($i);
+                $columns[] = strtolower($meta['name']);
+            }
+        } else {
+            $columns = AccessService::getColumns($zCheminParametreMdb, 'LIVRAISON');
+        }
+
+        // Détection dynamique du tri
+        $orderBy = null;
+        if (in_array('ordreq', $columns)) {
+            $orderBy = 'ordreq';
+        } elseif (in_array('ordref', $columns)) {
+            $orderBy = 'ordref';
+        }
+
+        // Vérifier si la colonne 'defaut' existe pour l'inclure dans la requête
+        $hasDefaultCol = in_array('defaut', $columns);
+        $selectFields = $hasDefaultCol ? "[idq], [defaut]" : "[idq]";
+
+        // 2. Construction et exécution de la requête SQL
+        $sql = "SELECT $selectFields FROM [LIVRAISON]";
+        if ($orderBy) {
+            $sql .= " ORDER BY [$orderBy] ASC";
+        }
+
+        $sourceRows = [];
+        if ($systemExploitation === 'Windows') {
+            $sourceRows = $pdo->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
+        } else {
+            $rawRows = AccessService::query($zCheminParametreMdb, $sql);
+            foreach ($rawRows as $rowLine) {
+                $parts = explode('||', $rowLine);
+                $sourceRows[] = [
+                    'idq' => trim($parts[0] ?? ''),
+                    'defaut' => $hasDefaultCol ? trim($parts[1] ?? '') : null
+                ];
+            }
+        }
+
+        // 3. Création dynamique de la table SQL
+        $tableName = 'source';
+        Schema::dropIfExists($tableName);
+
+        Schema::create($tableName, function (Blueprint $table) use ($sourceRows, $zDossier) {
+            $table->bigIncrements('id');
+            $table->string('n_lot')->nullable()->default(null);
+            $table->string('n_ima')->nullable()->default(null);
+            $table->string('n_enr')->nullable()->default(null);
+
+            if (strtoupper(trim($zDossier)) === 'STEFI MEDIAMETRIE') {
+                $table->string('ville')->nullable()->default(null);
+                $table->string('seance')->nullable()->default(null);
+            }
+
+            foreach ($sourceRows as $row) {
+                // Conversion de l'encodage du nom de la colonne
+                $text_utf8 = mb_convert_encoding($row['idq'], 'UTF-8', 'Windows-1252');
+                
+                // Normalisation du nom (nettoyage caractères spéciaux)
+                $colName = $this->normalizer->normalizeFieldName($text_utf8);
+                
+                // Gestion de la valeur par défaut
+                $defaultVal = isset($row['defaut']) ? trim($row['defaut']) : "";
+
+                if ($defaultVal !== "" && is_numeric($defaultVal)) {
+                    $table->integer($colName)->default((int)$defaultVal);
+                } else {
+                    $table->text($colName)->nullable()->default(null);
+                }
+            }
+
+            $table->timestamps();
+        });
+
+        return response()->json(['message' => 'Table SOURCE importée avec succès !']);
     }
 
     /**
