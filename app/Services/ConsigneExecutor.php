@@ -89,7 +89,7 @@ class ConsigneExecutor
             'FILL_EMPTY_DYN' => new FilleemptyDynConsigne(),
             'EMPTY_PUT_VALUE' => new FillIfNotEmptyConsigne(),
             'EXTRAIRE_NOM_IMAGE' => new ExtraireDonneesImageConsigne(),
-            'PAS_SPECIFIQUES' => new PasSpecifiquesConsigne(),
+            'PAS_CONSIGNE_SPECIFIQUE' => new PasSpecifiquesConsigne(),
 
             default => throw new \Exception("Consigne inconnue : $code")
         };
