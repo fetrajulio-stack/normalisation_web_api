@@ -54,6 +54,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/normalise', [\App\Http\Controllers\API\NormalisationController::class, 'importParametre']);
 });
 
+
+
 Route::get('/assemblage', [\App\Http\Controllers\API\NormalisationController::class, 'AssemblageMdb']);
 Route::get('/importmdb', [\App\Http\Controllers\API\NormalisationController::class, 'importMdb']);
 Route::get('/lots', [\App\Http\Controllers\API\NormalisationController::class, 'getLots']);
