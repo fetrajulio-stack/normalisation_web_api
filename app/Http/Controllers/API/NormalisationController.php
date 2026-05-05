@@ -31,6 +31,12 @@ class NormalisationController extends Controller
     {
         $this->normalizer = $normalizer;
         $this->tabFilter = $tabFilter;
+
+        $this->middleware('auth:sanctum')->except([
+            'normaliser',
+            'downloadExcel'
+        ]);
+
     }
 
     private function normalizeKeyClient($value)
