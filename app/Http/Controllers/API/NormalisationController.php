@@ -289,6 +289,9 @@ class NormalisationController extends Controller
                 
                 // Normalisation du nom (nettoyage caractères spéciaux)
                 $colName = $this->normalizer->normalizeFieldName($text_utf8);
+                if($colName === '') {
+                    dd($sourceRows);
+                }
                 
                 // Gestion de la valeur par défaut
                 $defaultVal = isset($row['defaut']) ? trim($row['defaut']) : "";
