@@ -265,6 +265,7 @@ class NormalisationController extends Controller
             $sourceRows = $pdo->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
         } else {
             $rawRows = AccessService::query($zCheminParametreMdb, $sql);
+            dd($rawRows);
             foreach ($rawRows as $rowLine) {
                 $parts = explode('||', $rowLine);
                 $sourceRows[] = [
