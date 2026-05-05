@@ -266,7 +266,7 @@ class NormalisationController extends Controller
         } else {
             $rawRows = AccessService::query($zCheminParametreMdb, $sql);
             foreach ($rawRows as $rowLine) {
-                if($rawRow !== ""){
+                if($rowLine !== ""){
                     $parts = explode('||', $rowLine);
                     $sourceRows[] = [
                         'idq' => trim($parts[0] ?? ''),
