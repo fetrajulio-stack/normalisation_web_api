@@ -265,13 +265,14 @@ class NormalisationController extends Controller
             $sourceRows = $pdo->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
         } else {
             $rawRows = AccessService::query($zCheminParametreMdb, $sql);
-            dd($rawRows);
             foreach ($rawRows as $rowLine) {
-                $parts = explode('||', $rowLine);
-                $sourceRows[] = [
-                    'idq' => trim($parts[0] ?? ''),
-                    'defaut' => $hasDefaultCol ? trim($parts[1] ?? '') : null
-                ];
+                if($rawRow !== ""){
+                    $parts = explode('||', $rowLine);
+                    $sourceRows[] = [
+                        'idq' => trim($parts[0] ?? ''),
+                        'defaut' => $hasDefaultCol ? trim($parts[1] ?? '') : null
+                    ];
+                }
             }
         }
 
@@ -296,9 +297,6 @@ class NormalisationController extends Controller
                 
                 // Normalisation du nom (nettoyage caractères spéciaux)
                 $colName = $this->normalizer->normalizeFieldName($text_utf8);
-                if($colName === '') {
-                    dd($sourceRows);
-                }
                 
                 // Gestion de la valeur par défaut
                 $defaultVal = isset($row['defaut']) ? trim($row['defaut']) : "";
