@@ -31,6 +31,40 @@ class AccessService
         // Note: mdb-sql avec -H ne renvoie pas les noms des colonnes.
         return $output;
     }
+     /**
+     * LINUX: Exécute une requête SQL et retourne un tableau associatif
+     */
+    public static function linuxQueryAssoc($path, $table, $sql)
+    {
+        $columns = self::getColumns($path, $table);
+        $delimiter = '|#|'; 
+        
+        $command = "echo " . escapeshellarg($sql) . " | mdb-sql -H -P -d " . escapeshellarg($delimiter) . " " . escapeshellarg($path);
+        exec($command, $output, $returnCode);
+
+        $results = [];
+        if ($returnCode !== 0 || empty($output)) {
+            return $results;
+        }
+
+        $colCount = count($columns);
+
+        foreach ($output as $line) {
+            $line = trim($line);
+            if (empty($line)) continue;
+
+            $values = explode($delimiter, $line);
+            $values = array_map('trim', $values);
+
+            if ($colCount > 0 && count($values) === $colCount) {
+                $results[] = array_combine($columns, $values);
+            } else {
+                $results[] = $values;
+            }
+        }
+
+        return $results;
+    }
 
     public static function getColumns($path, $table)
     {

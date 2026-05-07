@@ -362,7 +362,7 @@ class NormalisationController extends Controller
         return $files;
     }
 
-    public function importMdb(Request $request)
+    /*public function importMdb(Request $request)
     {
 
 
@@ -374,7 +374,7 @@ class NormalisationController extends Controller
         }
 
         /************************************ */
-        $zDossier = $request->nom_dossier ?? "";
+     /*   $zDossier = $request->nom_dossier ?? "";
         $zCode_dossier = $request->nom_code_dossier ?? "";
 //dd($zDossier . DIRECTORY_SEPARATOR . $zCode_dossier);
         //$basepathProdcution = env('NORMALISATION_BASE_PATH');
@@ -410,7 +410,7 @@ class NormalisationController extends Controller
         // dd($ini);
 
         //$ini = parse_ini_file('D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\Parametre.cat', true);
-        $ini = parse_ini_file($cheminMDBCat);
+     /*   $ini = parse_ini_file($cheminMDBCat);
         //dd($ini);
 
         // récupère la valeur de normalisation dans parametre.cat
@@ -438,7 +438,7 @@ class NormalisationController extends Controller
 
 
         /*************************RECUPERATION DES LOTS***************************** */
-        $listLots = $this->listLots($cheminLot);
+    /*    $listLots = $this->listLots($cheminLot);
         // dd($cheminLot);
         //dd($listLots);
 
@@ -465,9 +465,9 @@ class NormalisationController extends Controller
 
         /**$resdelete = $cnn->exec("DELETE FROM SOURCE"); // vide la table*/
 
-        DB::table('source')->truncate();
+   /*     DB::table('source')->truncate();
         /***********************************TRANFORMATION DE CERTAINS CLES ET FORMATAGE**************************************** */
-        $tMap = [
+    /*    $tMap = [
             "Fichier" => "N_LOT",
             "Tiff"    => "N_IMA",
             "xOrdre"  => "N_ENR",
@@ -534,7 +534,7 @@ class NormalisationController extends Controller
                                         ['Windows-1252', 'ISO-8859-1', 'UTF-8']
                                     );*/
                                    // 🔥 Correction ENCODAGE (remplace mb_convert_encoding)
-                                   $row[$key] = $this->fixEncoding($value);
+          /*                         $row[$key] = $this->fixEncoding($value);
                                 }
                             }
 
@@ -566,6 +566,157 @@ class NormalisationController extends Controller
 
         return response()->json(['message' => 'Import terminé.']);
     }
+*/
+
+public function importMdb(Request $request)
+{
+    $systemExploitation = env('SYSTEM_EXPLOITATION', 'Windows'); // Par défaut Windows si non défini
+
+    $useLibelle = (int)($request->input('libelle', 0)) === 1;
+    
+    // Charger le mapping UNE SEULE FOIS
+    $listeChoixMap = [];
+    if ($useLibelle) {
+        $listeChoixMap = $this->getListeChoix($request)->getData(true);
+    }
+
+    /************************************ */
+    $zDossier = $request->nom_dossier ?? "";
+    $zCode_dossier = $request->nom_code_dossier ?? "";
+
+    $basepathProdcution = config('normalisation.mdb_base_path');
+    $basePath = config('normalisation.base_path');
+
+    $cheminLot = $basepathProdcution
+        . DIRECTORY_SEPARATOR . $zDossier
+        . DIRECTORY_SEPARATOR . $zCode_dossier . DIRECTORY_SEPARATOR;
+
+    $cheminMDBCat = $basePath
+        . DIRECTORY_SEPARATOR . $zDossier
+        . DIRECTORY_SEPARATOR . $zCode_dossier
+        . DIRECTORY_SEPARATOR . 'Parametre.cat';
+    /************************************ */
+
+    // Lecture du fichier parametre.cat
+    $ini = parse_ini_file($cheminMDBCat);
+
+    $extention = $ini['parametre']['normalisation'] ?? ($ini['normalisation'] ?? null);
+    $passsword = $ini['parametre']['passe'] ?? ($ini['passe'] ?? null);
+
+    /*************************RECUPERATION DES LOTS***************************** */
+    $listLots = $this->listLots($cheminLot);
+    $selectedLots = $request->input('selected_lots'); 
+
+    if (!empty($selectedLots)) {
+        $listLots = array_filter($listLots, function ($lotPath) use ($selectedLots) {
+            return in_array(basename($lotPath), $selectedLots);
+        });
+
+        \Log::info('Lots filtrés selon la sélection', [
+            'selected_lots_count' => count($selectedLots),
+            'filtered_lots_count' => count($listLots),
+        ]);
+    }
+
+    /*************************************************************************** */
+    // Vider la table source
+    DB::table('source')->truncate();
+
+    /***********************************TRANFORMATION ET FORMATAGE****************** */
+    $tMap = [
+        "Fichier" => "N_LOT",
+        "Tiff"    => "N_IMA",
+        "xOrdre"  => "N_ENR",
+    ];
+    
+    $regleFormat = [
+        "N_ENR" => fn($v) => sprintf('%04d', (int)$v),
+    ];
+
+    $tMysqlSourceFields = self::getMysqlSourceFields();
+    $sqlTravail = "SELECT * FROM Travail ORDER BY TIFF, XORDRE";
+
+    foreach ($listLots as $lotPath) {
+        $mdbFiles = $this->getOkMdbFile($lotPath, $extention);
+
+        foreach ($mdbFiles as $filePath) {
+            $batch = [];
+            $tempPath = null;
+            $cnnS = null;
+
+            try {
+                // === LECTURE DES DONNEES SELON L'OS ===
+                $rowsToProcess = [];
+
+                if ($systemExploitation === 'Windows') {
+                    // METHODE WINDOWS (ODBC)
+                    $result   = AccessService::mdbConnect($filePath, $passsword);
+                    $cnnS     = $result['conn'];
+                    $tempPath = $result['tempPath'];
+                    
+                    $rs = odbc_exec($cnnS, $sqlTravail);
+                    
+                    while ($row = odbc_fetch_array($rs)) {
+                        $rowsToProcess[] = $row;
+                    }
+                } else {
+                    // METHODE LINUX (mdbtools)
+                    $rowsToProcess = AccessService::linuxQueryAssoc($filePath, 'Travail', $sqlTravail);
+                }
+
+                // === TRAITEMENT UNIFIE (Identique pour Windows et Linux) ===
+                foreach ($rowsToProcess as $row) {
+                    
+                    // 1. Filtrage et Normalisation initiale
+                    $filtered = $this->tabFilter->filterAndNormalize(
+                        self::getNewDataFormat($row, $regleFormat, $tMap),
+                        $tMysqlSourceFields
+                    );
+
+                    // 2. Mapping des libellés (si activé)
+                    if ($useLibelle) {
+                        $filtered = $this->applyLibelleMapping($filtered, $listeChoixMap);
+                    }
+
+                    // 3. Correction d'encodage et nettoyage des chaines
+                    foreach ($filtered as $key => $value) {
+                        if (is_string($value)) {
+                            $value = preg_replace('/^\s*b"/', '', $value);
+                            $value = trim($value, '"');
+                            $filtered[$key] = $this->fixEncoding($value);
+                        }
+                    }
+
+                    // 4. Ajout au lot (Batch)
+                    $batch[] = $filtered;
+
+                    // 5. Insertion si on atteint 500
+                    if (count($batch) >= 500) {
+                        $this->insertBatchSafely($batch);
+                        $batch = [];
+                    }
+                }
+
+                // === INSERTION DU RESTE DU BATCH ===
+                if (!empty($batch)) {
+                    $this->insertBatchSafely($batch);
+                }
+
+            } finally {
+                // Nettoyage spécifique Windows
+                if ($systemExploitation === 'Windows') {
+                    if ($cnnS) odbc_close($cnnS);
+                    if ($tempPath && file_exists($tempPath)) unlink($tempPath);
+                }
+                
+                // Laisser respirer le système
+                usleep(50000); // 50ms
+            }
+        }
+    }
+
+    return response()->json(['message' => 'Import terminé.']);
+}
 
     /**
      * Récupérer la liste des lots (sous-dossiers) pour un code dossier
@@ -1433,5 +1584,26 @@ class NormalisationController extends Controller
         }
     }
 
+    /**
+ * Fonction utilitaire pour insérer proprement le batch (try/catch ligne par ligne en cas d'erreur globale)
+ */
+private function insertBatchSafely(array $batch)
+{
+    try {
+        DB::table('source')->insert($batch);
+    } catch (\Illuminate\Database\QueryException $e) {
+        // En cas d'erreur sur le bloc (ex: une ligne est corrompue), on insère ligne par ligne pour isoler l'erreur
+        foreach ($batch as $row) {
+            try {
+                DB::table('source')->insert($row);
+            } catch (\Illuminate\Database\QueryException $e2) {
+                logger()->error('ERREUR INSERT LIGNE MDB', [
+                    'message' => $e2->getMessage(),
+                    'row'     => $row,
+                ]);
+            }
+        }
+    }
+}
 
 }
