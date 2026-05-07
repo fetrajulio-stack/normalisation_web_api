@@ -46,7 +46,8 @@ use App\Services\Consignes\IncrementationConsigne;
 use App\Services\Consignes\ConcatenerChampsConsigne;
 use App\Services\Consignes\ExtraireDonneesImageConsigne;
 use App\Services\Consignes\PasSpecifiquesConsigne;
-use App\Services\Consignes\DeuxPositionsConsigne;      
+use App\Services\Consignes\DeuxPositionsConsigne;
+use App\Services\Consignes\NomImageConsigne;      
 
 class ConsigneExecutor
 {
@@ -93,6 +94,7 @@ class ConsigneExecutor
             'EXTRAIRE_NOM_IMAGE' => new ExtraireDonneesImageConsigne(),
             'PAS_CONSIGNE_SPECIFIQUE' => new PasSpecifiquesConsigne(),
             'TWO_POSITIONS' => new DeuxPositionsConsigne(),
+            'NOM_IMAGE' => new NomImageConsigne(),
 
             default => throw new \Exception("Consigne inconnue : $code")
         };
