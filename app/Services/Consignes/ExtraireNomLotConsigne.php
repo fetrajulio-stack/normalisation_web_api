@@ -15,7 +15,18 @@ class ExtraireNomLotConsigne implements ConsigneInterface
 
         // Paramètres dynamiques
         $separateur = $parametres['separateur'] ?? '_';
-        $position = isset($parametres['position']) ? (int)$parametres['position'] : 0;
+
+        //$position = isset($parametres['position']) ? (int)$parametres['position'] : 0;
+        // $position = isset($parametres['position'])
+        //  ? max(0, ((int)$parametres['position']))
+        //  : 0;
+
+         // Correction index front-end
+        $position = isset($parametres['position'])
+            ? max(0, ((int)$parametres['position']) - 1)
+            : 0;
+
+
 
         if (!$cible || !isset($ligne[$source])) {
             return $ligne;
@@ -31,8 +42,8 @@ class ExtraireNomLotConsigne implements ConsigneInterface
         $parties = explode($separateur, $valeurSource);
 
         // Assignation à la cible (ex: nom_association prend la valeur extraite)
-        $ligne[$cible] = isset($parties[$position]) ? trim($parties[$position]) : '';
-
+       $ligne[$cible] = isset($parties[$position]) ? trim($parties[$position]) : '';
+       
         return $ligne;
     }
 }
