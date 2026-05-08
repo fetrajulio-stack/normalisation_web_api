@@ -16,6 +16,7 @@ class Parametre_consigne extends Model
         'consigne_id',  // <-- important
         'cle',
         'valeur',
+        'champ_id', // <-- pour lier à un champ spécifique si besoin
     ];
 
     public function consigne()

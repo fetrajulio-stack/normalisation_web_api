@@ -118,7 +118,8 @@ class ConsigneController extends Controller
 
         // 🎯 PARTIE CORRIGÉE : Enregistrement des paramètres (valeur_defaut)
         // On utilise updateOrCreate avec codification_id pour ne pas écraser les autres dossiers
-        if (!empty($consigneData['parametres'])) {
+        /**07/05/2026 */
+       /* if (!empty($consigneData['parametres'])) {
             foreach ($consigneData['parametres'] as $cle => $valeur) {
                 Parametre_consigne::updateOrCreate(
                     [
@@ -131,7 +132,72 @@ class ConsigneController extends Controller
                     ]
                 );
             }
+        }*/
+
+            /**07/05/2026 */
+
+        /*if (!empty($consigneData['parametres'])) {
+            foreach ($consigneData['parametres'] as $cle => $valeur) {
+                // Si la valeur est un tableau/objet, on la JSON-encode pour la stocker proprement
+                $valToStore = $valeur;
+                if (is_array($valeur) || is_object($valeur)) {
+                    $valToStore = json_encode($valeur, JSON_UNESCAPED_UNICODE);
+                }
+
+                Parametre_consigne::updateOrCreate(
+                    [
+                        'codification_id' => $codificationId,
+                        'consigne_id' => $consigneData['consigne_id'],
+                        'cle' => $cle
+                    ],
+                    [
+                        'valeur' => $valToStore ?? ''
+                    ]
+                );
+            }
+        }*/
+        if (!empty($consigneData['parametres'])) {
+
+            foreach ($consigneData['parametres'] as $parametre) {
+
+                // Vérification champ
+                if (empty($parametre['champ'])) {
+                    continue;
+                }
+
+                $nomChamp = strtolower($parametre['champ']);
+
+                // Vérification existence du champ
+                if (!isset($champs[$nomChamp])) {
+                    continue;
+                }
+
+                $champId = $champs[$nomChamp]->id;
+
+                // Boucle sur les paramètres du champ
+                foreach ($parametre as $cle => $valeur) {
+
+                    // Ignorer le nom du champ
+                    if ($cle === 'champ') {
+                        continue;
+                    }
+
+                    Parametre_consigne::updateOrCreate(
+                        [
+                            'codification_id' => $codificationId,
+                            'consigne_id' => $consigneData['consigne_id'],
+                            'champ_id' => $champId,
+                            'cle' => $cle
+                        ],
+                        [
+                            'valeur' => $valeur ?? ''
+                        ]
+                    );
+                }
+            }
         }
+
+
     }
 
     public function edit($codificationId)
@@ -162,9 +228,39 @@ class ConsigneController extends Controller
 
             // 1. Récupérer les paramètres (ex: valeur_defaut NR ou 5)
             if (isset($parametresDossier[$consigneId])) {
-                foreach ($parametresDossier[$consigneId] as $p) {
+                /**07 */
+                /*foreach ($parametresDossier[$consigneId] as $p) {
                     $item['parametres'][$p->cle] = $p->valeur;
+                }*/
+
+                /**07/05/2026 - Décodage JSON des paramètres complexes (ex: listes) */    
+                /*foreach ($parametresDossier[$consigneId] as $p) {
+                    $raw = $p->valeur;
+                    $decoded = null;
+                    if (is_string($raw)) {
+                        $maybe = json_decode($raw, true);
+                        if (json_last_error() === JSON_ERROR_NONE) {
+                            $decoded = $maybe;
+                        }
+                    }
+                    $item['parametres'][$p->cle] = $decoded !== null ? $decoded : $raw;
+                } */ 
+                foreach ($parametresDossier[$consigneId] as $p) {
+                    $champ = Champ::find($p->champ_id);
+
+                    if (!$champ) {
+                        continue;
+                    }
+
+                    $nomChamp = $champ->nom_champ;
+
+                    if (!isset($item['parametres'][$nomChamp])) {
+                        $item['parametres'][$nomChamp] = [];
+                    }
+
+                    $item['parametres'][$nomChamp][$p->cle] = $p->valeur;
                 }
+                
             }
 
             // 2. Récupérer tous les groupes (sans écraser)
@@ -208,99 +304,7 @@ class ConsigneController extends Controller
         }
     }
 
-    /**
-     * SIMULATION import MDB
-     * A remplacer par votre logique existante
-     */
-    /*private function importFromMdb($codificationId, $zDossier, $zCode_dossier)
-    {
-        $basePath = config('normalisation.base_path');
-        $zCheminParametreMdb = $basePath
-            . DIRECTORY_SEPARATOR . $zDossier
-            . DIRECTORY_SEPARATOR . $zCode_dossier
-            . DIRECTORY_SEPARATOR . 'Parametre.mdb';
-
-        // ✅ Vérification existence fichier        
-        if (!file_exists($zCheminParametreMdb)) {
-            return response()->json([
-                'status' => 'ERROR',
-                'message' => 'Fichier Parametre.mdb introuvable',
-                'chemin' => $zCheminParametreMdb
-            ], 404);
-        }
-
-        $pdo = AccessService::connect($zCheminParametreMdb,null,null);
-
-        //$sourceRows = $pdo->query(" SELECT idq FROM LIVRAISON ORDER BY ordreq ASC")->fetchAll(PDO::FETCH_ASSOC);
-
-        /**DEBUT: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */
-        /*    $stmt = $pdo->query("SELECT * FROM [LIVRAISON]");
-            $columns = [];
-            for ($i = 0; $i < $stmt->columnCount(); $i++) {
-                $meta = $stmt->getColumnMeta($i);
-                $columns[] = strtolower($meta['name']);
-            }
-
-            // Détection dynamique
-            $orderBy = null;
-
-            if (in_array('ordreq', $columns)) {
-                $orderBy = 'ordreq';
-            } elseif (in_array('ordref', $columns)) {
-                $orderBy = 'ordref';
-            }
-
-            // Construction SQL
-            $sql = "SELECT [idq] FROM [LIVRAISON]";
-
-            if ($orderBy) {
-                $sql .= " ORDER BY [$orderBy] ASC";
-            }
-            // Exécution
-            $sourceRows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
-           /**FIN: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */
-        
-        /*$sourceRows = $this->encodingService->utf8EncodeRecursive($sourceRows);
-
-        // Ajouter les champs supplémentaires n_lot, n_ima, n_enr
-        $extraChamps = ['n_lot', 'n_ima', 'n_enr','ville', 'seance'];
-
-
-        foreach ($extraChamps as $champ) {
-            Champ::updateOrCreate(
-                [
-                    'nom_champ' => $champ,
-                    'codification_id' => $codificationId
-                ],
-                [
-                    'valeur_defaut' => null
-                ]
-            );
-        }
-
-        foreach ($sourceRows as $row) {
-
-
-            Champ::updateOrCreate(
-                [
-                    //'nom_champ' => strtolower($row['idq']),
-                    'nom_champ' => $this->normalizer->normalizeFieldName($row['idq']),
-                    'codification_id' => $codificationId
-                ],
-                [
-                    'valeur_defaut' => $row['defaut'] ?? null
-                ]
-            );
-        }
-
-
-        return response()->json([
-            'status' => 'OK',
-            'message' => 'Champs importés avec succès'
-        ]);
-
-
-    }*/
+    
 
         private function importFromMdb($codificationId, $zDossier, $zCode_dossier)
     {

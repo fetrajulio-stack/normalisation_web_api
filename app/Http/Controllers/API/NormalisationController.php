@@ -732,11 +732,45 @@ class NormalisationController extends Controller
         foreach ($lignes as $ligne) {
             $data = (array) $ligne;
             foreach ($consignes as $consigne) {
-                $handler = $executor->getHandler($consigne->code);
-                foreach ($consigne->groupes as $groupe) {
-                    $champs = $groupe->champs->map(fn($gc) => strtolower($gc->champ->nom_champ))->toArray();
-                    $parametres = $consigne->parametres->pluck('valeur', 'cle')->toArray();
-                    $data = $handler->appliquer($data, $champs, $parametres);
+                //Pour la consigne d'extraction de nom de lot, on doit traiter différemment car elle nécessite de regrouper les paramètres par champ_id
+                if ($consigne->code === 'EXTRAIRE_NOM_LOT') {
+
+                    $handler = $executor->getHandler($consigne->code);
+
+                    foreach ($consigne->groupes as $groupe) {
+
+                        // CHAMPS : IMPORTANT → champ_id => nom_champ
+                        $champs = [];
+
+                        foreach ($groupe->champs as $gc) {
+                            $champs[$gc->champ->id] = strtolower($gc->champ->nom_champ);
+                        }
+
+                        // PARAMÈTRES GROUPÉS PAR champ_id (CORRIGÉ)
+                        $parametres = [];
+
+                        foreach ($consigne->parametres as $param) {
+
+                            if ($param->codification_id != $codification_id) {
+                                continue;
+                            }
+
+                            $parametres[$param->champ_id][] = [
+                                'cle' => $param->cle,
+                                'valeur' => $param->valeur
+                            ];
+                        }
+
+                        $data = $handler->appliquer($data, $champs, $parametres);
+                    }
+                }else{
+                    //Pour les autres consignes
+                    $handler = $executor->getHandler($consigne->code);
+                    foreach ($consigne->groupes as $groupe) {
+                        $champs = $groupe->champs->map(fn($gc) => strtolower($gc->champ->nom_champ))->toArray();
+                        $parametres = $consigne->parametres->pluck('valeur', 'cle')->toArray();
+                        $data = $handler->appliquer($data, $champs, $parametres);
+                    }
                 }
             }
             $rowsForExport[] = $data;
