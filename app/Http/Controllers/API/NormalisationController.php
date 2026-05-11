@@ -19,7 +19,6 @@ use Illuminate\Support\Facades\Log;
 use App\Imports\MappingImport;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PDO;
-use function Psr\Log\alert;
 
 
 class NormalisationController extends Controller
