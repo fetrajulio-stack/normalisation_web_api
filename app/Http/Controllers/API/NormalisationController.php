@@ -892,6 +892,8 @@ public function importMdb(Request $request)
             $rowsForExport[] = $data;
         }
 
+        dd([$lignes,$mapping,$rowsForExport]);
+
         // 4. Application du Mapping (si fourni par le Front)
         if (!empty($mapping)) {
             $mappingUpper = array_change_key_case($mapping, CASE_UPPER);
