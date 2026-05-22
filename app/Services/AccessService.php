@@ -39,7 +39,7 @@ class AccessService
         // dd($path, $table, $sql);
         $columns = self::getColumns($path, $table);
         $delimiter = '|#|'; 
-        dd($columns);
+        //dd($columns);
         $command = "echo " . escapeshellarg($sql) . " | mdb-sql -H -P -d " . escapeshellarg($delimiter) . " " . escapeshellarg($path);
         exec($command, $output, $returnCode);
 
