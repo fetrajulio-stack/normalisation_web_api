@@ -663,6 +663,7 @@ public function importMdb(Request $request)
                     $rowsToProcess = AccessService::linuxQueryAssoc($filePath, 'Travail', $sqlTravail);
                 }
 
+                dd($rowsToProcess);
                 // === TRAITEMENT UNIFIE (Identique pour Windows et Linux) ===
                 foreach ($rowsToProcess as $row) {
                     
