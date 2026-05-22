@@ -19,6 +19,7 @@ class AccessService
         // -H : pas d'entêtes
         // -P : pas de pagination (une seule ligne continue)
         // -d : délimiteur personnalisé pour le split
+        dd($path, $sql,escapeshellarg($sql));
         $command = "echo " . escapeshellarg($sql) . " | mdb-sql -H -P -d '||' " . escapeshellarg($path);
 
         exec($command, $output, $returnCode);
