@@ -275,6 +275,8 @@ class NormalisationController extends Controller
             }
         }
 
+        dd($sourceRows);
+
         // 3. Création dynamique de la table SQL
         $tableName = 'source';
         Schema::dropIfExists($tableName);
