@@ -710,7 +710,7 @@ public function importMdb(Request $request)
                     }
                 }
 
-                dd([$batch,$rowsToProcess]);
+                dd([$tMysqlSourceFields,$batch,$rowsToProcess]);
 
 
                 // === INSERTION DU RESTE DU BATCH ===
