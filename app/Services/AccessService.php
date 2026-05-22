@@ -49,6 +49,7 @@ class AccessService
         }
 
         $colCount = count($columns);
+        dd($columns, $output);
 
         foreach ($output as $line) {
             $line = trim($line);
