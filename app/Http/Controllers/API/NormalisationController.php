@@ -698,6 +698,8 @@ public function importMdb(Request $request)
                     }
                 }
 
+                dd($batch);
+
                 // === INSERTION DU RESTE DU BATCH ===
                 if (!empty($batch)) {
                     $this->insertBatchSafely($batch);
