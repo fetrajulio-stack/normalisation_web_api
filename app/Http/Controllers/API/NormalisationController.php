@@ -263,6 +263,7 @@ class NormalisationController extends Controller
         if ($systemExploitation === 'Windows') {
             $sourceRows = $pdo->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
         } else {
+            $selectFields = $hasDefaultCol ? "idq, defaut" : "idq";
             $sql = "SELECT $selectFields FROM LIVRAISON";
             if ($orderBy) {
                 $sql .= " ORDER BY $orderBy ASC";
@@ -1513,6 +1514,10 @@ public function importMdb(Request $request)
         if ($systemExploitation === 'Windows') {
             $rows = $pdo->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
         } else {
+             $sql = "SELECT idq, listechoix FROM LIVRAISON";
+            if ($orderBy) {
+                $sql .= " ORDER BY $orderBy ASC";
+            }
             $rawRows = AccessService::query($zCheminParametreMdb, $sql);
             foreach ($rawRows as $line) {
                 // mdb-sql avec le délimiteur '||'
