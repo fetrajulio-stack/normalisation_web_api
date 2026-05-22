@@ -1378,10 +1378,10 @@ public function importMdb(Request $request)
         $key = mb_convert_encoding($key, 'UTF-8', 'Windows-1252');
 
         // 🔥 4. enlever accents (SAFE)
-        $key = @transliterator_transliterate(
+       /* $key = @transliterator_transliterate(
             'Any-Latin; Latin-ASCII',
             $key
-        );
+        );*/
 
         // 🔥 fallback si transliterator échoue
         if (!$key) {
