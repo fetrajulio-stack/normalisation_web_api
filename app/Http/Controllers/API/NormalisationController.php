@@ -674,6 +674,7 @@ public function importMdb(Request $request)
                         $tMysqlSourceFields
                     );
 
+                     dd([$rowsToProcess,$row,$filtered]);
                     // 2. Mapping des libellés (si activé)
                     if ($useLibelle) {
                         $filtered = $this->applyLibelleMapping($filtered, $listeChoixMap);
@@ -688,7 +689,7 @@ public function importMdb(Request $request)
                         }
                     }
 
-                    dd([$rowsToProcess,$row,$filtered]);
+                   
 
                     // 4. Ajout au lot (Batch)
                     $batch[] = $filtered;
