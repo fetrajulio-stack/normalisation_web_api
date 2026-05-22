@@ -22,6 +22,7 @@ class AccessService
         $command = "echo " . escapeshellarg($sql) . " | mdb-sql -H -P -d '||' " . escapeshellarg($path);
 
         exec($command, $output, $returnCode);
+        dd($command, $output, $returnCode);
 
         if ($returnCode !== 0) {
             return [];
