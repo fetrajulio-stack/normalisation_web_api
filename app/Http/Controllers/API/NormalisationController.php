@@ -660,6 +660,7 @@ public function importMdb(Request $request)
                     }
                 } else {
                     // METHODE LINUX (mdbtools)
+                    $sqlTravail = "SELECT * FROM Travail";
                     $rowsToProcess = AccessService::linuxQueryAssoc($filePath, 'Travail', $sqlTravail);
                 }
 
