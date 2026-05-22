@@ -263,6 +263,10 @@ class NormalisationController extends Controller
         if ($systemExploitation === 'Windows') {
             $sourceRows = $pdo->query($sql)->fetchAll(\PDO::FETCH_ASSOC);
         } else {
+             $sql = "SELECT $selectFields FROM LIVRAISON";
+            if ($orderBy) {
+                $sql .= " ORDER BY $orderBy ASC";
+            }
             $rawRows = AccessService::query($zCheminParametreMdb, $sql);
             dd($rawRows);
             foreach ($rawRows as $rowLine) {
