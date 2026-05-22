@@ -710,7 +710,7 @@ public function importMdb(Request $request)
                     }
                 }
 
-                dd([$tMysqlSourceFields,$batch,$rowsToProcess]);
+                //dd([$tMysqlSourceFields,$batch,$rowsToProcess]);
 
 
                 // === INSERTION DU RESTE DU BATCH ===
@@ -1390,7 +1390,7 @@ public function importMdb(Request $request)
         $key = trim($key, '"');
 
         // 🔥 3. corriger encodage
-        //$key = mb_convert_encoding($key, 'UTF-8', 'Windows-1252');
+        $key = mb_convert_encoding($key, 'UTF-8', 'Windows-1252');
 
         // 🔥 4. enlever accents (SAFE)
         /*$key = @transliterator_transliterate(
