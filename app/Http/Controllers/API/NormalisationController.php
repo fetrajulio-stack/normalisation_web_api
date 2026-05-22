@@ -287,7 +287,6 @@ class NormalisationController extends Controller
         $tableName = 'source';
         Schema::dropIfExists($tableName);
 
-        //dd($sourceRows);
 
         Schema::create($tableName, function (Blueprint $table) use ($sourceRows, $zDossier) {
             $table->bigIncrements('id');
@@ -674,7 +673,7 @@ public function importMdb(Request $request)
                     $rowsToProcess = AccessService::linuxQueryAssoc($filePath, 'Travail', $sqlTravail);
                 }
 
-                // dd($rowsToProcess);
+                
                 // === TRAITEMENT UNIFIE (Identique pour Windows et Linux) ===
                 foreach ($rowsToProcess as $row) {
                     
@@ -710,6 +709,8 @@ public function importMdb(Request $request)
                         $batch = [];
                     }
                 }
+
+                dd([$batch,$rowsToProcess]);
 
 
                 // === INSERTION DU RESTE DU BATCH ===
