@@ -36,6 +36,7 @@ class AccessService
      */
     public static function linuxQueryAssoc($path, $table, $sql)
     {
+        dd($path, $table, $sql);
         $columns = self::getColumns($path, $table);
         $delimiter = '|#|'; 
         
