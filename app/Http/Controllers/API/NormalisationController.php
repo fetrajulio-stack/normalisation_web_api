@@ -674,7 +674,7 @@ public function importMdb(Request $request)
                         $tMysqlSourceFields
                     );
 
-                     //dd([$rowsToProcess,$row,$filtered]);
+                    dd([$rowsToProcess,$row,$filtered]);
                     // 2. Mapping des libellés (si activé)
                     if ($useLibelle) {
                         $filtered = $this->applyLibelleMapping($filtered, $listeChoixMap);
