@@ -64,7 +64,12 @@ class AccessService
             if ($colCount > 0 && count($values) === $colCount) {
                 $results[] = array_combine($columns, $values);
             } else {
-                $results[] = $values;
+                // Eviter de renvoyer un array numérique : sinon le pipeline ne peut plus mapper les clés.
+                // On retourne quand même un mapping best-effort sur les min-colonnes.
+                $min = min($colCount, count($values));
+                if ($min > 0) {
+                    $results[] = array_combine(array_slice($columns, 0, $min), array_slice($values, 0, $min));
+                }
             }
         }
 
@@ -78,7 +83,17 @@ class AccessService
         $line = shell_exec($command);
         if (!$line) return [];
 
-        return array_map('strtolower', str_getcsv(trim($line)));
+        $line = trim(preg_replace("/\r\n?|\n/", "", $line));
+        $headers = str_getcsv($line);
+
+        // Normalisation stricte des noms de colonnes pour matcher les clés attendues
+        return array_map(function ($h) {
+            $h = trim((string)$h);
+            $h = strtolower($h);
+            $h = preg_replace('/\s+/', '_', $h);
+            $h = preg_replace('/[^a-z0-9_\-]/', '', $h);
+            return $h;
+        }, $headers);
     }
 
     public static function mdbConnect_old($path, $password = '')

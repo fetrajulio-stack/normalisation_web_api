@@ -287,6 +287,8 @@ class NormalisationController extends Controller
         $tableName = 'source';
         Schema::dropIfExists($tableName);
 
+        //dd($sourceRows);
+
         Schema::create($tableName, function (Blueprint $table) use ($sourceRows, $zDossier) {
             $table->bigIncrements('id');
             $table->string('n_lot')->nullable()->default(null);
