@@ -36,10 +36,10 @@ class AccessService
      */
     public static function linuxQueryAssoc($path, $table, $sql)
     {
-        dd($path, $table, $sql);
+        // dd($path, $table, $sql);
         $columns = self::getColumns($path, $table);
         $delimiter = '|#|'; 
-        
+        dd($columns);
         $command = "echo " . escapeshellarg($sql) . " | mdb-sql -H -P -d " . escapeshellarg($delimiter) . " " . escapeshellarg($path);
         exec($command, $output, $returnCode);
 
@@ -72,7 +72,7 @@ class AccessService
     public static function getColumns($path, $table)
     {
         // Récupère uniquement la première ligne (les noms des colonnes) via mdb-export
-        $command = "mdb-export -i " . escapeshellarg($path) . " " . escapeshellarg($table) . " | head -n 1";
+        $command = "mdb-export " . escapeshellarg($path) . " " . escapeshellarg($table) . " | head -n 1";
         $line = shell_exec($command);
         if (!$line) return [];
 
