@@ -667,7 +667,7 @@ public function importMdb(Request $request)
                 // dd($rowsToProcess);
                 // === TRAITEMENT UNIFIE (Identique pour Windows et Linux) ===
                 foreach ($rowsToProcess as $row) {
-                    dd($row);
+                    dd([$rowsToProcess,$row]);
                     // 1. Filtrage et Normalisation initiale
                     $filtered = $this->tabFilter->filterAndNormalize(
                         self::getNewDataFormat($row, $regleFormat, $tMap),
