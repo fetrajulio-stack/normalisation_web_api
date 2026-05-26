@@ -59,7 +59,7 @@ class AccessService
             if (empty($line)) continue;
 
              // 2. IGNORER LE MESSAGE DE MDB-SQL ICI :
-            if (strpos($line, 'Rows retrieved') !== false) {
+            if (strpos($line, 'Rows retrieved') !== false ||strpos($line, 'Row retrieved') !== false) {
                 continue; // On passe à la ligne suivante (ou on termine la boucle)
             }
 
