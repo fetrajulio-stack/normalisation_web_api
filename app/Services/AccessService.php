@@ -58,6 +58,11 @@ class AccessService
             $line = trim($line);
             if (empty($line)) continue;
 
+             // 2. IGNORER LE MESSAGE DE MDB-SQL ICI :
+            if (strpos($line, 'Rows retrieved') !== false) {
+                continue; // On passe à la ligne suivante (ou on termine la boucle)
+            }
+
             $values = explode($delimiter, $line);
             $values = array_map('trim', $values);
 
