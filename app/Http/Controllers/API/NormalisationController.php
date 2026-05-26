@@ -683,7 +683,7 @@ public function importMdb(Request $request)
                         $tMysqlSourceFields
                     );
 
-                    dd([$filtered,$row,$regleFormat,$tMap]);
+                    //dd([$filtered,$row,$regleFormat,$tMap]);
 
                     //dd([$rowsToProcess,$row,$filtered]);
                     // 2. Mapping des libellés (si activé)
