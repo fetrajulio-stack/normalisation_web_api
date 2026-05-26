@@ -631,11 +631,20 @@ public function importMdb(Request $request)
     DB::table('source')->truncate();
 
     /***********************************TRANFORMATION ET FORMATAGE****************** */
-    $tMap = [
-        "fichier" => "N_LOT",
-        "tiff"    => "N_IMA",
-        "xOrdre"  => "N_ENR",
-    ];
+    if($systemExploitation === 'Windows'){
+         $tMap = [
+            "Fichier" => "N_LOT",
+            "tiff"    => "N_IMA",
+            "xOrdre"  => "N_ENR",
+        ];
+    }else{
+            $tMap = [
+                "fichier" => "N_LOT",
+                "Tiff"    => "N_IMA",
+                "xOrdre"  => "N_ENR",
+            ];
+    }
+   
     
     $regleFormat = [
         "N_ENR" => fn($v) => sprintf('%04d', (int)$v),
