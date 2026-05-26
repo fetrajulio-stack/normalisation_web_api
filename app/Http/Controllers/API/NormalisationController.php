@@ -632,8 +632,8 @@ public function importMdb(Request $request)
 
     /***********************************TRANFORMATION ET FORMATAGE****************** */
     $tMap = [
-        "Fichier" => "N_LOT",
-        "Tiff"    => "N_IMA",
+        "fichier" => "N_LOT",
+        "tiff"    => "N_IMA",
         "xOrdre"  => "N_ENR",
     ];
     
