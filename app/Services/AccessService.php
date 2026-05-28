@@ -78,7 +78,7 @@ class AccessService
             }
         }
 
-        dd($columns, $results);
+        //dd($columns, $results);
 
         return $results;
     }
