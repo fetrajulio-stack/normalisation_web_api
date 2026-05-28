@@ -6,44 +6,47 @@ class ExtraireNomLotConsigne implements ConsigneInterface
 {
     public function appliquer(array $ligne, array $champs, array $parametres = []): array
     {
-        $source = 'n_lot'; // Source fixe
+        $source = 'n_lot';
 
-        // PRIORITÉ :
-        // 1. Un champ cible défini dans les paramètres
-        // 2. Le premier champ coché dans le groupe (ex: nom_association)
-        $cible = $parametres['champ_cible'] ?? ($champs[0] ?? null);
-
-        // Paramètres dynamiques
-        $separateur = $parametres['separateur'] ?? '_';
-
-        //$position = isset($parametres['position']) ? (int)$parametres['position'] : 0;
-        // $position = isset($parametres['position'])
-        //  ? max(0, ((int)$parametres['position']))
-        //  : 0;
-
-         // Correction index front-end
-        $position = isset($parametres['position'])
-            ? max(0, ((int)$parametres['position']) - 1)
-            : 0;
-
-
-
-        if (!$cible || !isset($ligne[$source])) {
+        if (!isset($ligne[$source])) {
             return $ligne;
         }
 
         $valeurSource = trim((string)$ligne[$source]);
 
-        if ($valeurSource === "") {
+        if ($valeurSource === '') {
             return $ligne;
         }
 
-        // Découpage dynamique
-        $parties = explode($separateur, $valeurSource);
+        $parties = explode('_', $valeurSource);
 
-        // Assignation à la cible (ex: nom_association prend la valeur extraite)
-       $ligne[$cible] = isset($parties[$position]) ? trim($parties[$position]) : '';
-       
+        foreach ($champs as $champId => $cible) {
+
+            if (!isset($parametres[$champId])) {
+                continue;
+            }
+
+            // reconstruction des paramètres du champ
+            $params = [];
+
+            foreach ($parametres[$champId] as $p) {
+                $params[$p['cle']] = $p['valeur'];
+            }
+
+            $separateur = $params['separateur'] ?? '_';
+
+            $position = isset($params['position'])
+                ? (int)$params['position']
+                : 0;
+
+            // re-explode si séparateur différent (optionnel mais safe)
+            if ($separateur !== '_') {
+                $parties = explode($separateur, $valeurSource);
+            }
+
+            $ligne[$cible] = $parties[$position] ?? '';
+        }
+
         return $ligne;
     }
 }
