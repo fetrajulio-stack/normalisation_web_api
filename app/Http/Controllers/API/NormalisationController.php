@@ -996,16 +996,6 @@ public function importMdb(Request $request)
         }
 
         $systemExploitation = env('SYSTEM_EXPLOITATION', 'Windows'); 
-        //Correction Collums sur linux
-        if ($systemExploitation !== 'Windows') {
-            foreach ($rowsForExport as &$item) {
-                $item = array_filter(
-                    $item,
-                    fn($key) => !preg_match('/^\d+_rows_retrieved$/', $key),
-                    ARRAY_FILTER_USE_KEY
-                );
-            }
-        }
 
         //dd([$rowsForExport,$mapping]);
         // 5. Export unique
