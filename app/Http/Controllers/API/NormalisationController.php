@@ -268,31 +268,27 @@ class NormalisationController extends Controller
             
             $rawRows = AccessService::query($zCheminParametreMdb, $sql);
 
-            foreach ($rawRows as &$items) {
+            $rawRows = array_filter($rawRows, function ($value) {
 
-                // Supprimer les intrus
-                $items = array_filter($items, function ($value) {
+                // Supprimer les valeurs vides
+                if (trim($value) === '') {
+                    return false;
+                }
 
-                    // Supprimer les valeurs vides
-                    if (trim($value) === '') {
-                        return false;
-                    }
+                // Supprimer "xx Rows retrieved"
+                if (preg_match('/^\d+\s+Rows retrieved$/i', trim($value))) {
+                    return false;
+                }
 
-                    // Supprimer "xx Rows retrieved"
-                    if (preg_match('/^\d+\s+Rows retrieved$/i', trim($value))) {
-                        return false;
-                    }
+                return true;
+            });
 
-                    return true;
-                });
+            // Réindexer
+            $rawRows = array_values($rawRows);
 
-                // Réindexer
-                $items = array_values($items);
+            // Trier A -> Z
+            sort($rawRows, SORT_NATURAL | SORT_FLAG_CASE);
 
-                // Trier A -> Z
-                sort($items, SORT_NATURAL | SORT_FLAG_CASE);
-            }
-            
             dd([$rawRows,$columns]);
             foreach ($rawRows as $rowLine) {
                 if($rowLine !== ""){
