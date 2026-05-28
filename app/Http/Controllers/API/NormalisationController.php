@@ -266,10 +266,10 @@ class NormalisationController extends Controller
             $selectFields = $hasDefaultCol ? "idq, defaut" : "idq";
             $sql = "SELECT $selectFields FROM LIVRAISON";
             if ($orderBy) {
-                $sql .= " ORDER BY $orderBy ASC";
+                //$sql .= " ORDER BY $orderBy ASC";
             }
             $rawRows = AccessService::query($zCheminParametreMdb, $sql);
-            // dd($rawRows);
+            dd($rawRows);
             foreach ($rawRows as $rowLine) {
                 if($rowLine !== ""){
                     $parts = explode('||', $rowLine);
