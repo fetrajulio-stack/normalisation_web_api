@@ -265,10 +265,34 @@ class NormalisationController extends Controller
         } else {
             $selectFields = $hasDefaultCol ? "idq, defaut" : "idq";
             $sql = "SELECT $selectFields FROM LIVRAISON";
-            if ($orderBy) {
-                //$sql .= " ORDER BY $orderBy ASC";
-            }
+            
             $rawRows = AccessService::query($zCheminParametreMdb, $sql);
+
+            foreach ($rawRows as &$items) {
+
+                // Supprimer les intrus
+                $items = array_filter($items, function ($value) {
+
+                    // Supprimer les valeurs vides
+                    if (trim($value) === '') {
+                        return false;
+                    }
+
+                    // Supprimer "xx Rows retrieved"
+                    if (preg_match('/^\d+\s+Rows retrieved$/i', trim($value))) {
+                        return false;
+                    }
+
+                    return true;
+                });
+
+                // Réindexer
+                $items = array_values($items);
+
+                // Trier A -> Z
+                sort($items, SORT_NATURAL | SORT_FLAG_CASE);
+            }
+            
             dd([$rawRows,$columns]);
             foreach ($rawRows as $rowLine) {
                 if($rowLine !== ""){
