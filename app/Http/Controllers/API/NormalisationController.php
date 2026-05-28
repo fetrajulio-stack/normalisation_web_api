@@ -941,6 +941,15 @@ public function importMdb(Request $request)
             $rowsForExport = $mappedRows;
         }
 
+        //Correction Collums sur linux
+        foreach ($rowsForExport as &$item) {
+            $item = array_filter(
+                $item,
+                fn($key) => !preg_match('/^\d+_rows_retrieved$/', $key),
+                ARRAY_FILTER_USE_KEY
+            );
+        }
+        
         dd([$rowsForExport,$mapping]);
         // 5. Export unique
         Excel::store(new NormalisationExport($rowsForExport, $dossier), $filePath, 'public');
