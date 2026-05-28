@@ -943,7 +943,7 @@ public function importMdb(Request $request)
 
         $systemExploitation = env('SYSTEM_EXPLOITATION', 'Windows'); 
         //Correction Collums sur linux
-        if ($systemExploitation === 'Windows') {
+        if ($systemExploitation !== 'Windows') {
             foreach ($rowsForExport as &$item) {
                 $item = array_filter(
                     $item,
