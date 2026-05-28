@@ -269,7 +269,7 @@ class NormalisationController extends Controller
                 //$sql .= " ORDER BY $orderBy ASC";
             }
             $rawRows = AccessService::query($zCheminParametreMdb, $sql);
-            dd($rawRows);
+            dd([$rawRows,$columns]);
             foreach ($rawRows as $rowLine) {
                 if($rowLine !== ""){
                     $parts = explode('||', $rowLine);
