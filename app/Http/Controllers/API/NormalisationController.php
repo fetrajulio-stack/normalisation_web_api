@@ -723,7 +723,7 @@ public function importMdb(Request $request)
                     }
                 }
 
-                dd([$teste,$tMysqlSourceFields,$batch,$rowsToProcess]);
+                //dd([$teste,$tMysqlSourceFields,$batch,$rowsToProcess]);
 
 
                 // === INSERTION DU RESTE DU BATCH ===
@@ -940,6 +940,8 @@ public function importMdb(Request $request)
             }
             $rowsForExport = $mappedRows;
         }
+
+        dd([$rowsForExport,$mapping]);
         // 5. Export unique
         Excel::store(new NormalisationExport($rowsForExport, $dossier), $filePath, 'public');
 
