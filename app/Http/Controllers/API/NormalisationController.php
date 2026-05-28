@@ -684,6 +684,7 @@ public function importMdb(Request $request)
 
                 // dd([$rowsToProcess,$filePath,$systemExploitation]);
                 // === TRAITEMENT UNIFIE (Identique pour Windows et Linux) ===
+                $teste = [];
                 foreach ($rowsToProcess as $row) {
                     
                     // 1. Filtrage et Normalisation initiale
@@ -713,6 +714,7 @@ public function importMdb(Request $request)
 
                     // 4. Ajout au lot (Batch)
                     $batch[] = $filtered;
+                    $teste[] = $filtered;
 
                     // 5. Insertion si on atteint 500
                     if (count($batch) >= 500) {
@@ -721,7 +723,7 @@ public function importMdb(Request $request)
                     }
                 }
 
-                //dd([$tMysqlSourceFields,$batch,$rowsToProcess]);
+                dd([$teste,$tMysqlSourceFields,$batch,$rowsToProcess]);
 
 
                 // === INSERTION DU RESTE DU BATCH ===
