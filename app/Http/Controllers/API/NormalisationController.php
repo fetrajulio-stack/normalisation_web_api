@@ -289,7 +289,7 @@ class NormalisationController extends Controller
             // Trier A -> Z
             sort($rawRows, SORT_NATURAL | SORT_FLAG_CASE);
 
-            dd([$rawRows,$columns]);
+            //dd([$rawRows,$columns]);
             foreach ($rawRows as $rowLine) {
                 if($rowLine !== ""){
                     $parts = explode('||', $rowLine);
