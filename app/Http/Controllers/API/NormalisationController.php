@@ -226,6 +226,11 @@ class NormalisationController extends Controller
             . DIRECTORY_SEPARATOR . 'Parametre.mdb';
 
         $systemExploitation = env('SYSTEM_EXPLOITATION');
+
+        $indexation = $request->input('indexation', []);
+        $useIndexation = is_array($indexation) && count($indexation) > 0;
+
+
         $columns = [];
         $pdo = null;
 
@@ -308,11 +313,15 @@ class NormalisationController extends Controller
         Schema::dropIfExists($tableName);
 
 
-        Schema::create($tableName, function (Blueprint $table) use ($sourceRows, $zDossier) {
+        Schema::create($tableName, function (Blueprint $table) use ($sourceRows, $zDossier, $useIndexation) {
             $table->bigIncrements('id');
             $table->string('n_lot')->nullable()->default(null);
             $table->string('n_ima')->nullable()->default(null);
             $table->string('n_enr')->nullable()->default(null);
+
+            if ($useIndexation) {
+                $table->string('nom_fichier_indexe')->nullable()->default(null);
+            }
 
             if (strtoupper(trim($zDossier)) === 'STEFI MEDIAMETRIE') {
                 $table->string('ville')->nullable()->default(null);
@@ -390,217 +399,14 @@ class NormalisationController extends Controller
         return $files;
     }
 
-    /*public function importMdb(Request $request)
-    {
-
-
-        $useLibelle = (int)($request->input('libelle', 0)) === 1;
-        // Charger le mapping UNE SEULE FOIS
-        $listeChoixMap = [];
-        if ($useLibelle) {
-            $listeChoixMap = $this->getListeChoix($request)->getData(true);
-        }
-
-        /************************************ */
-     /*   $zDossier = $request->nom_dossier ?? "";
-        $zCode_dossier = $request->nom_code_dossier ?? "";
-//dd($zDossier . DIRECTORY_SEPARATOR . $zCode_dossier);
-        //$basepathProdcution = env('NORMALISATION_BASE_PATH');
-        $basepathProdcution = config('normalisation.mdb_base_path');
-        //dd("prod base path : " . $basepathProdcution);
-
-        $basePath = config('normalisation.base_path');
-        //dd($basePath);
-
-        $cheminLot = $basepathProdcution
-            . DIRECTORY_SEPARATOR . $zDossier
-            . DIRECTORY_SEPARATOR . $zCode_dossier . DIRECTORY_SEPARATOR;
-
-        $cheminMDBCat= $basePath
-            . DIRECTORY_SEPARATOR . $zDossier
-            . DIRECTORY_SEPARATOR . $zCode_dossier
-            . DIRECTORY_SEPARATOR . 'Parametre.cat';
-
-        //  dd($cheminLot);
-        /************************************ */
-
-        //$livraisonPath = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\Normalisation\livraison.mdb'; // livraison.mdb
-        //  $cheminLot = 'D:\DEVELOPPEMENT\PRODUCTION\MASQUE\STEFI FRANCE ALZEIMER\FRA-09558-INTERVENANT_ENTRETIEN_INDIVIDUEL-TYPE 2\LOTS';              // chemin parent des LOTS
-
-        //D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\SOURCE
-        //  dd("123");
-        /*************************LECTURE DU FICHIER PARAMETRE.CAT ET RESUPERATION DE L'EXTENSION***************************** */
-
-        //$ini = parse_ini_file(
-        //   'D:/DEVELOPPEMENT/PRODUCTION/NORMALISATION/STEFI MEDIAMETRIE/MED-08251-AVATAR-DFEDC-ADULTE/Parametre.cat',
-        //  true
-        //);*/
-        // dd($ini);
-
-        //$ini = parse_ini_file('D:\DEVELOPPEMENT\PRODUCTION\NORMALISATION\STEFI MEDIAMETRIE\MED-08251-AVATAR-DFEDC-ADULTE\Parametre.cat', true);
-     /*   $ini = parse_ini_file($cheminMDBCat);
-        //dd($ini);
-
-        // récupère la valeur de normalisation dans parametre.cat
-        if(isset($ini['parametre'])){
-            $extention = $ini['parametre']['normalisation']; // affichera "VO"
-        }
-        else if(isset($ini['normalisation'])) {
-            $extention = $ini['normalisation']; // affichera "VO"
-        }
-        else{
-            $extention = null;
-        }
-
-        // dd($extention);
-        // récupère la valeur de passe dans parametre.cat
-        if(isset($ini['parametre'])){
-            $passsword = $ini['parametre']['passe']; // affichera "VO"
-        }
-        else if(isset($ini['passe'])) {
-            $passsword = $ini['passe']; // affichera "VO"
-        }
-        else{
-            $passsword = null;
-        }
-
-
-        /*************************RECUPERATION DES LOTS***************************** */
-    /*    $listLots = $this->listLots($cheminLot);
-        // dd($cheminLot);
-        //dd($listLots);
-
-        // Filtrer les lots si une sélection a été envoyée par le frontend
-        $selectedLots = $request->input('selected_lots'); // Array de noms de lots
-
-        if (!empty($selectedLots)) {
-            // Filtrer pour garder seulement les lots sélectionnés
-            $listLots = array_filter($listLots, function ($lotPath) use ($selectedLots, $cheminLot) {
-                $lotName = basename($lotPath); // Récupérer le nom du dossier
-                return in_array($lotName, $selectedLots);
-            });
-
-            \Log::info('Lots filtrés selon la sélection', [
-                'selected_lots_count' => count($selectedLots),
-                'filtered_lots_count' => count($listLots),
-                'selected_lots' => $selectedLots
-            ]);
-        }
-
-        /*************************************************************************** */
-        /************ Connexion PDO vers livraison.mdb puis vider la table source****************************** */
-        //$cnn =  AccessService::connect($livraisonPath,null,null);
-
-        /**$resdelete = $cnn->exec("DELETE FROM SOURCE"); // vide la table*/
-
-   /*     DB::table('source')->truncate();
-        /***********************************TRANFORMATION DE CERTAINS CLES ET FORMATAGE**************************************** */
-    /*    $tMap = [
-            "Fichier" => "N_LOT",
-            "Tiff"    => "N_IMA",
-            "xOrdre"  => "N_ENR",
-        ];
-        $regleFormat = [
-            "N_ENR" => fn($v) => sprintf('%04d', (int)$v),
-        ];
-
-        foreach ($listLots as $lotPath) {
-            // Parcours récursif des fichiers MDB .OK.MDB
-            $mdbFiles = $this->getOkMdbFile($lotPath, $extention);
-//dd($mdbFiles);
-
-            foreach ($mdbFiles as $filePath) {
-              //  $cnnS = AccessService::mdbConnect($filePath, $passsword);
-                $cnnS     = null;
-                $rs       = null;
-                $tempPath = null;
-                try {
-                    $result   = AccessService::mdbConnect($filePath, $passsword);
-                    $cnnS     = $result['conn'];
-                    $tempPath = $result['tempPath'];
-                    $sqlTravail = "SELECT * FROM Travail ORDER BY TIFF, XORDRE";
-                    $rs = odbc_exec($cnnS, $sqlTravail);
-
-                    $tMysqlSourceFields = self::getMysqlSourceFields();
-                    $batch = [];
-
-                    while ($rows = odbc_fetch_array($rs)) {
-
-                        $filtered = $this->tabFilter->filterAndNormalize(
-                            self::getNewDataFormat($rows, $regleFormat, $tMap),
-                            $tMysqlSourceFields
-                        );
-
-                        // 🔥 Appliquer les libellés si demandé
-                        if ($useLibelle) {
-                            $filtered = $this->applyLibelleMapping($filtered, $listeChoixMap);
-                        }
-
-                        $batch[] = $filtered;
-
-                        if (count($batch) >= 500) {
-                            DB::table('source')->insert($batch);
-                            $batch = [];
-                        }
-                    }
-
-                    if (!empty($batch)) {
-
-
-
-                        foreach ($batch as $row) {
-                            if ($useLibelle) {
-                                $row = $this->applyLibelleMapping($row, $listeChoixMap);
-                            }
-                            foreach ($row as $key => $value) {
-                                if (is_string($value)) {
-                                    $value = preg_replace('/^\s*b"/', '', $value);
-                                    $value = trim($value, '"');
-                                    /*$row[$key] = mb_convert_encoding(
-                                        $value,
-                                        'UTF-8',
-                                        ['Windows-1252', 'ISO-8859-1', 'UTF-8']
-                                    );*/
-                                   // 🔥 Correction ENCODAGE (remplace mb_convert_encoding)
-          /*                         $row[$key] = $this->fixEncoding($value);
-                                }
-                            }
-
-                            try {
-                                DB::table('source')->insert($row);
-                            } catch (\Illuminate\Database\QueryException $e) {
-                                logger()->error('ERREUR INSERT LIGNE MDB', [
-                                    'message' => $e->getMessage(),
-                                    'row'     => $row,
-                                ]);
-                            }
-                        }
-                    }
-
-                } finally {
-                    //  TOUJOURS fermer la connexion
-                    if ($cnnS) {
-                        odbc_close($cnnS);
-                    }
-                    //  important
-                    $cnnS = null;
-                    unset($cnnS);
-
-                    // laisser respirer ODBC
-                    usleep(50000); // 50ms
-                }
-            }
-        }
-
-        return response()->json(['message' => 'Import terminé.']);
-    }
-*/
-
 public function importMdb(Request $request)
 {
     $systemExploitation = env('SYSTEM_EXPLOITATION', 'Windows'); // Par défaut Windows si non défini
 
     $useLibelle = (int)($request->input('libelle', 0)) === 1;
+
+    $indexation = $request->input('indexation', []);
+    $useIndexation = is_array($indexation) && count($indexation) > 0;
     
     // Charger le mapping UNE SEULE FOIS
     $listeChoixMap = [];
@@ -671,6 +477,12 @@ public function importMdb(Request $request)
     ];
 
     $tMysqlSourceFields = self::getMysqlSourceFields();
+
+    if ($useIndexation) {
+        $tMysqlSourceFields[] = 'nom_fichier_indexe';
+    }
+
+
     $sqlTravail = "SELECT * FROM Travail ORDER BY TIFF, XORDRE";
 
     foreach ($listLots as $lotPath) {
@@ -730,7 +542,54 @@ public function importMdb(Request $request)
                         }
                     }
 
-                   
+                    // INDEXATION
+                    if ($useIndexation) {
+
+                        $indexParts = [];
+                        $globalSeparator = '_';
+
+                        // Trier par ordre
+                        usort($indexation, function ($a, $b) {
+                            return ($a['ordre'] ?? 0) <=> ($b['ordre'] ?? 0);
+                        });
+
+                        foreach ($indexation as $rule) {
+
+                            // Séparateur personnalisé
+                            if (!empty($rule['parametres']['separateur'])) {
+                                $globalSeparator = $rule['parametres']['separateur'];
+                            }
+
+                            // Plusieurs champs possibles
+                            $champs = $rule['champs'] ?? [];
+
+                            foreach ($champs as $champ) {
+
+                                // Normalisation du nom du champ
+                                $champNormalise = strtolower(trim($champ));
+
+                                // Vérifier si le champ existe
+                                if (array_key_exists($champNormalise, $filtered)) {
+
+                                    $value = trim((string)$filtered[$champNormalise]);
+
+                                    if ($value !== '') {
+                                        $indexParts[] = $value;
+                                    }
+                                }
+                            }
+                        }
+
+                        // Construction finale
+                        $nomFichier = implode($globalSeparator, array_filter($indexParts));
+
+                        // Nettoyage caractères interdits Windows
+                        $nomFichier = preg_replace('/[\\\\\\/:"*?<>|]+/', '_', $nomFichier);
+
+                        // Ajout extension PDF
+                        $filtered['nom_fichier_indexe'] = $nomFichier . '.pdf';
+                    }
+                    
 
                     // 4. Ajout au lot (Batch)
                     $batch[] = $filtered;
@@ -997,7 +856,24 @@ public function importMdb(Request $request)
 
         $systemExploitation = env('SYSTEM_EXPLOITATION', 'Windows'); 
 
-        //dd([$rowsForExport,$mapping]);
+        // Déplacer nom_fichier_indexe à la dernière colonne
+        $rowsForExport = array_map(function ($row) {
+
+            $row = (array) $row;
+
+            if (array_key_exists('nom_fichier_indexe', $row)) {
+
+                $value = $row['nom_fichier_indexe'];
+
+                unset($row['nom_fichier_indexe']);
+
+                $row['nom_fichier_indexe'] = $value;
+            }
+
+            return $row;
+
+        }, $rowsForExport);
+        
         // 5. Export unique
         Excel::store(new NormalisationExport($rowsForExport, $dossier), $filePath, 'public');
 
