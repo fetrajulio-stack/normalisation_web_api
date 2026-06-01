@@ -769,6 +769,8 @@ public function importMdb(Request $request)
         $codeDossier = $codification->code_dossier;
         $dossier = $codification->dossier;
         $filePath = 'Exports/' . $codeDossier . '.xlsx';
+        $indexedFilePath = 'Exports/' . $codeDossier . '_indexe.xlsx';
+
 
         // 3. Récupération des consignes et traitement (Ton code existant)
         $consignes = Consigne::with([
@@ -779,10 +781,36 @@ public function importMdb(Request $request)
                     })->with('champ');
                 }]);
             },
-            'parametres'
-        ])->whereHas('groupes.champs.champ', function ($q) use ($codification_id) {
-            $q->where('codification_id', $codification_id);
+            'parametres' => function ($q) use ($codification_id) {
+                $q->where('codification_id', $codification_id);
+            }
+        ])->where(function ($query) use ($codification_id) {
+            // Charger les consignes avec des champs associés à cette codification
+            $query->whereHas('groupes.champs.champ', function ($q) use ($codification_id) {
+                $q->where('codification_id', $codification_id);
+            })
+            // OU charger INDEXER_DOCUMENTS seulement si elle a des paramètres pour cette codification
+            ->orWhereHas('parametres', function ($q) use ($codification_id) {
+                $q->where('codification_id', $codification_id);
+            }, '>', 0);
         })->get();
+
+        \Log::info('normaliser consignes loaded', [
+            'codification_id' => $codification_id,
+            'total_consignes' => $consignes->count(),
+            'codes' => $consignes->pluck('code')->toArray(),
+            'indexation_exists' => $consignes->contains(fn ($consigne) => $consigne->code === 'INDEXER_DOCUMENTS'),
+            'details' => $consignes->map(fn ($consigne) => [
+                'code' => $consigne->code,
+                'groupes_count' => $consigne->groupes->count(),
+                'parametres_count' => $consigne->parametres->count(),
+            ])->toArray(),
+        ]);
+
+        // Séparer les consignes d'indexation pour les appliquer à la fin
+        $indexationConsignes = $consignes->filter(fn ($consigne) => $consigne->code === 'INDEXER_DOCUMENTS')->values();
+        $normalConsignes = $consignes->reject(fn ($consigne) => $consigne->code === 'INDEXER_DOCUMENTS')->values();
+        $hasIndexation = $indexationConsignes->isNotEmpty();
 
         $executor = new ConsigneExecutor();
         $lignes = DB::table('source')->get();
@@ -790,30 +818,24 @@ public function importMdb(Request $request)
 
         foreach ($lignes as $ligne) {
             $data = (array) $ligne;
-            foreach ($consignes as $consigne) {
-                //Pour la consigne d'extraction de nom de lot, on doit traiter différemment car elle nécessite de regrouper les paramètres par champ_id
+            foreach ($normalConsignes as $consigne) {
+
+                // Pour la consigne d'extraction de nom de lot, on doit traiter différemment car elle nécessite de regrouper les paramètres par champ_id
                 if ($consigne->code === 'EXTRAIRE_NOM_LOT') {
 
                     $handler = $executor->getHandler($consigne->code);
-
                     foreach ($consigne->groupes as $groupe) {
-
                         // CHAMPS : IMPORTANT → champ_id => nom_champ
                         $champs = [];
-
                         foreach ($groupe->champs as $gc) {
                             $champs[$gc->champ->id] = strtolower($gc->champ->nom_champ);
                         }
-
-                        // PARAMÈTRES GROUPÉS PAR champ_id (CORRIGÉ)
+                        // PARAMÈTRES GROUPÉS PAR champ_id
                         $parametres = [];
-
                         foreach ($consigne->parametres as $param) {
-
                             if ($param->codification_id != $codification_id) {
                                 continue;
                             }
-
                             $parametres[$param->champ_id][] = [
                                 'cle' => $param->cle,
                                 'valeur' => $param->valeur
@@ -822,8 +844,8 @@ public function importMdb(Request $request)
 
                         $data = $handler->appliquer($data, $champs, $parametres);
                     }
-                }else{
-                    //Pour les autres consignes
+                } else {
+                    // Pour les autres consignes
                     $handler = $executor->getHandler($consigne->code);
                     foreach ($consigne->groupes as $groupe) {
                         $champs = $groupe->champs->map(fn($gc) => strtolower($gc->champ->nom_champ))->toArray();
@@ -874,15 +896,81 @@ public function importMdb(Request $request)
 
         }, $rowsForExport);
         
-        // 5. Export unique
-        Excel::store(new NormalisationExport($rowsForExport, $dossier), $filePath, 'public');
+        // 5. Export en Excel
+            // =====================================================
+            // EXPORT NORMAL
+            // =====================================================
 
-        return response()->json([
-            'status' => 'OK',
-            'message' => 'Fichier Excel généré',
-            'url' => asset('storage/' . $filePath),
-            'filename' => $codeDossier . '.xlsx'
-        ]);
+            Excel::store(
+                new NormalisationExport($rowsForExport, $dossier),
+                $filePath,
+                'public'
+            );
+
+            $response = [
+                'status'   => 'OK',
+                'message'  => 'Fichier Excel généré',
+                'url'      => route('api.normalisation.download', ['filename' => basename($filePath)]),
+                'filename' => $codeDossier . '.xlsx'
+            ];
+
+            if ($hasIndexation) {
+                $rowsForExportIndexed = [];
+
+                foreach ($rowsForExport as $row) {
+                    $rowIndexed = $row;
+
+                    foreach ($indexationConsignes as $consigne) {
+                        $handler = $executor->getHandler($consigne->code);
+
+                        foreach ($consigne->groupes as $groupe) {
+                            $champs = [];
+                            foreach ($groupe->champs as $gc) {
+                                $champs[$gc->champ->id] = strtolower($gc->champ->nom_champ);
+                            }
+
+                            $parametres = [];
+                            foreach ($consigne->parametres as $param) {
+                                if ($param->codification_id != $codification_id) {
+                                    continue;
+                                }
+                                $parametres[$param->champ_id][] = [
+                                    'cle' => $param->cle,
+                                    'valeur' => $param->valeur
+                                ];
+                            }
+
+                            $rowIndexed = $handler->appliquer($rowIndexed, $champs, $parametres);
+                        }
+                    }
+
+                    $rowsForExportIndexed[] = $rowIndexed;
+                }
+
+                // Déplacer nom_fichier_indexe à la dernière colonne aussi pour le fichier indexé
+                $rowsForExportIndexed = array_map(function ($row) {
+                    $row = (array) $row;
+
+                    if (array_key_exists('nom_fichier_indexe', $row)) {
+                        $value = $row['nom_fichier_indexe'];
+                        unset($row['nom_fichier_indexe']);
+                        $row['nom_fichier_indexe'] = $value;
+                    }
+
+                    return $row;
+                }, $rowsForExportIndexed);
+
+                Excel::store(
+                    new NormalisationExport($rowsForExportIndexed, $dossier),
+                    $indexedFilePath,
+                    'public'
+                );
+
+                $response['indexed_url'] = route('api.normalisation.download', ['filename' => basename($indexedFilePath)]);
+                $response['indexed_filename'] = $codeDossier . '_indexe.xlsx';
+            }
+
+            return response()->json($response);
     }
 
     /**

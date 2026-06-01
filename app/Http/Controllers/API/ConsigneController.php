@@ -156,32 +156,76 @@ class ConsigneController extends Controller
                 );
             }
         }*/
+        // Enregistrement des paramètres globaux ou par groupe
         if (!empty($consigneData['parametres'])) {
+            // Format attendu : liste d'objets {champ, ...}
+            if (array_is_list($consigneData['parametres'])) {
+                foreach ($consigneData['parametres'] as $parametre) {
+                    if (empty($parametre['champ'])) {
+                        continue;
+                    }
 
-            foreach ($consigneData['parametres'] as $parametre) {
+                    $nomChamp = strtolower($parametre['champ']);
+                    if (!isset($champs[$nomChamp])) {
+                        continue;
+                    }
 
-                // Vérification champ
-                if (empty($parametre['champ'])) {
-                    continue;
+                    $champId = $champs[$nomChamp]->id;
+                    foreach ($parametre as $cle => $valeur) {
+                        if ($cle === 'champ') {
+                            continue;
+                        }
+
+                        Parametre_consigne::updateOrCreate(
+                            [
+                                'codification_id' => $codificationId,
+                                'consigne_id' => $consigneData['consigne_id'],
+                                'champ_id' => $champId,
+                                'cle' => $cle
+                            ],
+                            [
+                                'valeur' => $valeur ?? ''
+                            ]
+                        );
+                    }
                 }
+            }
+            // Ancien format associatif : on conserve si besoin, sans champ spécifique
+            elseif (is_array($consigneData['parametres'])) {
+                foreach ($consigneData['parametres'] as $cle => $valeur) {
+                    Parametre_consigne::updateOrCreate(
+                        [
+                            'codification_id' => $codificationId,
+                            'consigne_id' => $consigneData['consigne_id'],
+                            'cle' => $cle
+                        ],
+                        [
+                            'valeur' => is_array($valeur) || is_object($valeur) ? json_encode($valeur, JSON_UNESCAPED_UNICODE) : ($valeur ?? '')
+                        ]
+                    );
+                }
+            }
+        }
 
-                $nomChamp = strtolower($parametre['champ']);
+        // Enregistrement des paramètres attachés aux groupes
+        if (!isset($consigneData['groupes'])) {
+            return;
+        }
 
-                // Vérification existence du champ
+        foreach ($consigneData['groupes'] as $groupeData) {
+            $groupParams = $groupeData['parametres'] ?? [];
+            if (empty($groupParams) || !is_array($groupParams)) {
+                continue;
+            }
+
+            foreach ($groupeData['champs'] as $nomChamp) {
+                $nomChamp = strtolower($nomChamp);
                 if (!isset($champs[$nomChamp])) {
                     continue;
                 }
 
                 $champId = $champs[$nomChamp]->id;
-
-                // Boucle sur les paramètres du champ
-                foreach ($parametre as $cle => $valeur) {
-
-                    // Ignorer le nom du champ
-                    if ($cle === 'champ') {
-                        continue;
-                    }
-
+                foreach ($groupParams as $cle => $valeur) {
                     Parametre_consigne::updateOrCreate(
                         [
                             'codification_id' => $codificationId,
@@ -190,7 +234,7 @@ class ConsigneController extends Controller
                             'cle' => $cle
                         ],
                         [
-                            'valeur' => $valeur ?? ''
+                            'valeur' => is_array($valeur) || is_object($valeur) ? json_encode($valeur, JSON_UNESCAPED_UNICODE) : ($valeur ?? '')
                         ]
                     );
                 }

@@ -47,7 +47,8 @@ use App\Services\Consignes\ConcatenerChampsConsigne;
 use App\Services\Consignes\ExtraireDonneesImageConsigne;
 use App\Services\Consignes\PasSpecifiquesConsigne;
 use App\Services\Consignes\DeuxPositionsConsigne;
-use App\Services\Consignes\NomImageConsigne;      
+use App\Services\Consignes\NomImageConsigne; 
+use App\Services\Consignes\IndexerDocumentsConsigne;    
 
 class ConsigneExecutor
 {
@@ -95,6 +96,7 @@ class ConsigneExecutor
             'PAS_CONSIGNE_SPECIFIQUE' => new PasSpecifiquesConsigne(),
             'TWO_POSITIONS' => new DeuxPositionsConsigne(),
             'NOM_IMAGE' => new NomImageConsigne(),
+            'INDEXER_DOCUMENTS' => new IndexerDocumentsConsigne(),
 
             default => throw new \Exception("Consigne inconnue : $code")
         };
