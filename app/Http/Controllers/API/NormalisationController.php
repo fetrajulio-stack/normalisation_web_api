@@ -755,29 +755,30 @@ public function importMdb(Request $request)
         // 1. Validation
         $request->validate([
             'codification_id' => 'required|numeric',
-            // On s'attend à recevoir le mapping ici si présent
         ]);
 
         $codification_id = $request->input('codification_id');
-
-        // On récupère le mapping directement depuis la requête React
-        // Assure-toi que ton front envoie bien un objet "mapping" dans le JSON
         $mapping = $request->input('mapping_file') ?? null;
+        $payloadConsignes = $request->input('consignes') ?? null;
 
-        // 2. Préparation des infos dossier (AVANT le mapping pour éviter les erreurs)
+        // 2. Préparation des infos dossier
         $codification = Codification::findOrFail($codification_id);
         $codeDossier = $codification->code_dossier;
         $dossier = $codification->dossier;
         $filePath = 'Exports/' . $codeDossier . '.xlsx';
         $indexedFilePath = 'Exports/' . $codeDossier . '_indexe.xlsx';
 
-
-        // 3. Récupération des consignes et traitement (Ton code existant)
-        $consignes = Consigne::with([
-            'groupes' => function ($qg) use ($codification_id) {
-                $qg->with(['champs' => function ($qc) use ($codification_id) {
-                    $qc->whereHas('champ', function ($qcc) use ($codification_id) {
-                        $qcc->where('codification_id', $codification_id);
+        // 3. Décider si on utilise le payload du front ou la BDD
+        if ($payloadConsignes && is_array($payloadConsignes) && !empty($payloadConsignes)) {
+            // Utiliser le payload du front-end
+            $consignes = $this->buildConsignesFromPayload($payloadConsignes, $codification_id);
+        } else {
+            // Charger depuis la BDD (fallback)
+            $consignes = Consigne::with([
+                'groupes' => function ($qg) use ($codification_id) {
+                    $qg->with(['champs' => function ($qc) use ($codification_id) {
+                        $qc->whereHas('champ', function ($qcc) use ($codification_id) {
+                            $qcc->where('codification_id', $codification_id);
                     })->with('champ');
                 }]);
             },
@@ -794,18 +795,7 @@ public function importMdb(Request $request)
                 $q->where('codification_id', $codification_id);
             }, '>', 0);
         })->get();
-
-        \Log::info('normaliser consignes loaded', [
-            'codification_id' => $codification_id,
-            'total_consignes' => $consignes->count(),
-            'codes' => $consignes->pluck('code')->toArray(),
-            'indexation_exists' => $consignes->contains(fn ($consigne) => $consigne->code === 'INDEXER_DOCUMENTS'),
-            'details' => $consignes->map(fn ($consigne) => [
-                'code' => $consigne->code,
-                'groupes_count' => $consigne->groupes->count(),
-                'parametres_count' => $consigne->parametres->count(),
-            ])->toArray(),
-        ]);
+        }
 
         // Séparer les consignes d'indexation pour les appliquer à la fin
         $indexationConsignes = $consignes->filter(fn ($consigne) => $consigne->code === 'INDEXER_DOCUMENTS')->values();
@@ -921,27 +911,41 @@ public function importMdb(Request $request)
                     $rowIndexed = $row;
 
                     foreach ($indexationConsignes as $consigne) {
+
                         $handler = $executor->getHandler($consigne->code);
 
+                        // Regrouper TOUS les champs de TOUS les groupes
+                        $champs = [];
+
                         foreach ($consigne->groupes as $groupe) {
-                            $champs = [];
+
                             foreach ($groupe->champs as $gc) {
-                                $champs[$gc->champ->id] = strtolower($gc->champ->nom_champ);
-                            }
 
-                            $parametres = [];
-                            foreach ($consigne->parametres as $param) {
-                                if ($param->codification_id != $codification_id) {
-                                    continue;
-                                }
-                                $parametres[$param->champ_id][] = [
-                                    'cle' => $param->cle,
-                                    'valeur' => $param->valeur
-                                ];
+                                $champs[$gc->champ->id] =
+                                    strtolower($gc->champ->nom_champ);
                             }
-
-                            $rowIndexed = $handler->appliquer($rowIndexed, $champs, $parametres);
                         }
+
+                        // Paramètres de la consigne
+                        $parametres = [];
+
+                        foreach ($consigne->parametres as $param) {
+
+                            if ($param->codification_id != $codification_id) {
+                                continue;
+                            }
+
+                            $parametres[$param->champ_id][] = [
+                                'cle'    => $param->cle,
+                                'valeur' => $param->valeur
+                            ];
+                        }
+
+                        $rowIndexed = $handler->appliquer(
+                            $rowIndexed,
+                            $champs,
+                            $parametres
+                        );
                     }
 
                     $rowsForExportIndexed[] = $rowIndexed;
@@ -961,7 +965,7 @@ public function importMdb(Request $request)
                 }, $rowsForExportIndexed);
 
                 Excel::store(
-                    new NormalisationExport($rowsForExportIndexed, $dossier),
+                    new NormalisationExport($rowsForExportIndexed, $dossier, true),
                     $indexedFilePath,
                     'public'
                 );
@@ -1282,29 +1286,6 @@ public function importMdb(Request $request)
         return $datamaps;
     }
 
-//    public function importMappingClient(Request $request)
-//    {
-//        // On récupère le fichier envoyé par le bouton bleu "Mapping Client"
-//        if ($request->hasFile('mapping_file')) {
-//            $file = $request->file('mapping_file');
-//
-//            // On transforme l'Excel en tableau PHP
-//            $data = Excel::toArray(new MappingImport, $file);
-//
-//            // On stocke en session pour que 'Lancer la normalisation' y ait accès
-//            session(['mapping_client' => $data[0]]);
-//
-//            return response()->json([
-//                'success' => true,
-//                'message' => 'Mapping mémorisé avec succès'
-//            ]);
-//        }
-//
-//        return response()->json(['success' => false, 'message' => 'Aucun fichier reçu']);
-//    }
-
-
-
 
 
     /**
@@ -1446,65 +1427,6 @@ public function importMdb(Request $request)
 
         return $key;
     }
-
-
-    /*public function getListeChoix(Request $request)
-    {
-        $zDossier = $request->nom_dossier ?? "";
-        $zCode_dossier = $request->nom_code_dossier ?? "";
-
-        $basePath = config('normalisation.base_path');
-        $zCheminParametreMdb = $basePath
-            . DIRECTORY_SEPARATOR . $zDossier
-            . DIRECTORY_SEPARATOR . $zCode_dossier
-            . DIRECTORY_SEPARATOR . 'Parametre.mdb';
-
-        $pdo = AccessService::connect($zCheminParametreMdb, null, null);
-
-        $rows = $pdo->query("
-            SELECT idq, listechoix
-            FROM LIVRAISON
-            ORDER BY ordreq ASC
-        ")->fetchAll(PDO::FETCH_ASSOC);
-
-        $result = [];
-
-        foreach ($rows as $row) {
-
-            // Encodage propre
-            $idq = $this->fixEncoding($row['idq']);
-            //$idq = trim(mb_convert_encoding($row['idq'], 'UTF-8', 'Windows-1252'));
-            $listechoix = $row['listechoix'];
-
-            // Ignorer les lignes vides (ex: Q3-autre)
-            if (empty($listechoix)) {
-                continue;
-            }
-
-            // Conversion encodage
-            //$listechoix = mb_convert_encoding($listechoix, 'UTF-8', 'Windows-1252');
-            $listechoix = $this->fixEncoding($listechoix);
-
-            // Séparer par #
-            $choixArray = explode('#', $listechoix);
-
-            foreach ($choixArray as $choix) {
-
-                $choix = trim($choix);
-
-                // Séparer numéro et valeur (ex: "1. texte")
-                if (preg_match('/^(\d+)\.\s*(.*)$/', $choix, $matches)) {
-
-                    $numero = (int)$matches[1];
-                    $valeur = trim($matches[2]);
-
-                    $result[$idq][$numero] = $valeur;
-                }
-            }
-        }
-
-        return response()->json($result);
-    }*/
 
     public function getListeChoix(Request $request)
     {
@@ -1663,5 +1585,124 @@ private function insertBatchSafely(array $batch)
         }
     }
 }
+
+    /**
+     * Construire une collection de Consignes à partir du payload du front-end
+     */
+    private function buildConsignesFromPayload(array $payloadConsignes, $codification_id)
+    {
+        $consignes = collect();
+        $allChamps = Champ::where('codification_id', $codification_id)->get()->keyBy('nom_champ');
+
+        foreach ($payloadConsignes as $consigneData) {
+            $consigneId = $consigneData['consigne_id'] ?? null;
+            $consigneCode = $consigneData['consigne_code'] ?? null;
+
+            // Chercher la consigne en base pour les infos globales
+            $consigneModel = Consigne::find($consigneId);
+            if (!$consigneModel) {
+                continue;
+            }
+
+            // Initialiser les collections de groupes et paramètres
+            $consigneModel->setRelation('groupes', collect());
+            $consigneModel->setRelation('parametres', collect());
+
+            // Traiter les groupes
+            if (isset($consigneData['groupes']) && is_array($consigneData['groupes'])) {
+                foreach ($consigneData['groupes'] as $groupeData) {
+                    $groupeModel = new \App\Models\Consigne_groupe([
+                        'consigne_id' => $consigneId,
+                        'ordre' => $groupeData['ordre'] ?? null,
+                    ]);
+
+                    // Traiter les champs du groupe
+                    $champCollection = collect();
+                    if (isset($groupeData['champs']) && is_array($groupeData['champs'])) {
+                        foreach ($groupeData['champs'] as $champName) {
+                            $champName = strtolower(trim($champName));
+                            if (isset($allChamps[$champName])) {
+                                $champModel = $allChamps[$champName];
+                                $groupeChampModel = new \App\Models\Consigne_groupe_champ([
+                                    'consigne_groupe_id' => null,
+                                    'champ_id' => $champModel->id,
+                                    'ordre' => 1,
+                                ]);
+                                $groupeChampModel->setRelation('champ', $champModel);
+                                $champCollection->push($groupeChampModel);
+                            }
+                        }
+                    }
+                    $groupeModel->setRelation('champs', $champCollection);
+
+                    // Traiter les paramètres du groupe
+                    if (isset($groupeData['parametres']) && is_array($groupeData['parametres'])) {
+                        foreach ($groupeData['parametres'] as $cle => $valeur) {
+                            $paramModel = new \App\Models\Parametre_consigne([
+                                'consigne_id' => $consigneId,
+                                'codification_id' => $codification_id,
+                                'cle' => $cle,
+                                'valeur' => $valeur,
+                                'champ_id' => null,
+                            ]);
+                            $consigneModel->parametres->push($paramModel);
+                        }
+                    }
+
+                    $consigneModel->groupes->push($groupeModel);
+                }
+            }
+
+            // Traiter les paramètres au niveau de la consigne (format liste d'objets)
+            if (isset($consigneData['parametres']) && is_array($consigneData['parametres'])) {
+                // Si c'est une liste (array_is_list), on traite chaque item avec son champ
+                if (array_is_list($consigneData['parametres'])) {
+                    foreach ($consigneData['parametres'] as $paramItem) {
+                        if (!is_array($paramItem) || empty($paramItem['champ'])) {
+                            continue;
+                        }
+
+                        $champName = strtolower(trim($paramItem['champ']));
+                        $champModel = $allChamps[$champName] ?? null;
+                        if (!$champModel) {
+                            continue;
+                        }
+
+                        foreach ($paramItem as $cle => $valeur) {
+                            if ($cle === 'champ') {
+                                continue;
+                            }
+
+                            $paramModel = new \App\Models\Parametre_consigne([
+                                'consigne_id' => $consigneId,
+                                'codification_id' => $codification_id,
+                                'champ_id' => $champModel->id,
+                                'cle' => $cle,
+                                'valeur' => $valeur,
+                            ]);
+                            $consigneModel->parametres->push($paramModel);
+                        }
+                    }
+                }
+                // Si c'est un objet associatif, on traite sans champ_id
+                else {
+                    foreach ($consigneData['parametres'] as $cle => $valeur) {
+                        $paramModel = new \App\Models\Parametre_consigne([
+                            'consigne_id' => $consigneId,
+                            'codification_id' => $codification_id,
+                            'cle' => $cle,
+                            'valeur' => is_array($valeur) || is_object($valeur) ? json_encode($valeur) : $valeur,
+                            'champ_id' => null,
+                        ]);
+                        $consigneModel->parametres->push($paramModel);
+                    }
+                }
+            }
+
+            $consignes->push($consigneModel);
+        }
+
+        return $consignes;
+    }
 
 }

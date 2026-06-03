@@ -251,11 +251,13 @@ class ConsigneController extends Controller
             $q->where('codification_id', $codificationId);
         })
             ->with(['consigne', 'champs.champ'])
+            ->orderBy('id', 'asc')
             ->get()
             ->groupBy('consigne_id'); // On groupe par ID de consigne
 
         // On récupère TOUS les paramètres de ce dossier
         $parametresDossier = Parametre_consigne::where('codification_id', $codificationId)
+        ->orderBy('id', 'asc')
             ->get()
             ->groupBy('consigne_id');
 

@@ -10,11 +10,13 @@ class NormalisationExport implements FromArray, WithHeadings
     protected $data;
     protected $dossier;
     protected $processedData = [];
+    protected $isIndexed = false;
 
-    public function __construct(array $data, string $dossier = '')
+    public function __construct(array $data, string $dossier = '', bool $isIndexed = false)
     {
         $this->data = $data;
         $this->dossier = strtoupper($dossier);
+        $this->isIndexed = $isIndexed;
     }
 
     private function isStefi(): bool
@@ -116,10 +118,20 @@ class NormalisationExport implements FromArray, WithHeadings
 
         $headings = array_keys($this->processedData[0]);
 
-        return array_map(function ($heading) {
-
+        $mapped = array_map(function ($heading) {
+            // Mapper nom_fichier_index → nom_fichier_indexe
+            if (strtolower($heading) === 'nom_fichier_index') {
+                return 'NOM_FICHIER_INDEXE';
+            }
             return strtoupper($heading);
         }, $headings);
+
+        // Pour les exports indexés, s'assurer que NOM_FICHIER_INDEXE est présent
+        if ($this->isIndexed && !in_array('NOM_FICHIER_INDEXE', $mapped, true)) {
+            $mapped[] = 'NOM_FICHIER_INDEXE';
+        }
+
+        return $mapped;
     }
 
 
