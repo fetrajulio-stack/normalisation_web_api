@@ -9,6 +9,8 @@ use App\Http\Controllers\API\NormalisationController;
 use App\Http\Controllers\API\CodificationController;
 use App\Http\Controllers\API\DatamapController;
 use App\Http\Controllers\API\ExcelMergeController;
+use App\Http\Controllers\IndexerPdfController;
+use App\Http\Controllers\PdfLocalController;
 
 
 /*
@@ -54,7 +56,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/normalise', [\App\Http\Controllers\API\NormalisationController::class, 'importParametre']);
 });
 
-
+//Route::post('/upload-pdf-indexation', [IndexerPdfController::class, 'upload']);
+Route::post('/upload-pdf-local', [PdfLocalController::class, 'upload']);
+Route::get('/normalisation/download-zip/{filename}', [NormalisationController::class, 'downloadZip'])
+    ->name('api.normalisation.download_zip');
 
 Route::get('/assemblage', [\App\Http\Controllers\API\NormalisationController::class, 'AssemblageMdb']);
 Route::get('/importmdb', [\App\Http\Controllers\API\NormalisationController::class, 'importMdb']);

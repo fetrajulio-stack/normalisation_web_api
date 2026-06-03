@@ -37,9 +37,19 @@ class NormalisationExport implements FromArray, WithHeadings
     {
         $data = [];
         $compteur = 1;
+        $forceNima = false;
 
         foreach ($this->data as $ligne) {
             $ligne = (array) $ligne;
+            if (
+                $this->isIndexed ||
+                isset($ligne['nom_fichier_indexe']) ||
+                isset($ligne['NOM_FICHIER_INDEXE'])
+            ) {
+                $forceNima = true;
+            }
+
+
 
             // 🔹 Garder tes suppressions
             unset($ligne['created_at'], $ligne['updated_at']);
@@ -95,6 +105,14 @@ class NormalisationExport implements FromArray, WithHeadings
                 $ligne['ville']  = $ville;
                 $ligne['seance'] = $seance;
             }
+
+
+            // Vérification N_IMA (sans créer de colonne)
+            /*if ($this->isIndexed || $forceNima) {
+                if (!array_key_exists('N_IMA', $ligne)) {
+                    throw new \Exception("Colonne N_IMA manquante dans le fichier indexé");
+                }
+            }*/
 
             $data[] = $ligne;
             $compteur++;
