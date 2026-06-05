@@ -41,8 +41,8 @@ class NormalisationExport implements FromArray, WithHeadings
 
         foreach ($this->data as $ligne) {
             $ligne = (array) $ligne;
-            if (
-                $this->isIndexed ||
+
+            if ($this->isIndexed ||
                 isset($ligne['nom_fichier_indexe']) ||
                 isset($ligne['NOM_FICHIER_INDEXE'])
             ) {
@@ -53,6 +53,15 @@ class NormalisationExport implements FromArray, WithHeadings
 
             // 🔹 Garder tes suppressions
             unset($ligne['created_at'], $ligne['updated_at']);
+            
+            if (!$this->isIndexed) {
+                unset(
+                    $ligne['nom_fichier_indexe'],
+                    $ligne['nom_fichier_index'],
+                    $ligne['NOM_FICHIER_INDEXE']
+                );
+            }
+
 
             if ($this->isStefi()) {
                 $columnsToRemove = array_map('strtolower', $this->stefiColumnsToRemove());
@@ -136,7 +145,7 @@ class NormalisationExport implements FromArray, WithHeadings
 
         $headings = array_keys($this->processedData[0]);
 
-        $mapped = array_map(function ($heading) {
+            $mapped = array_map(function ($heading) {
             // Mapper nom_fichier_index → nom_fichier_indexe
             if (strtolower($heading) === 'nom_fichier_index') {
                 return 'NOM_FICHIER_INDEXE';

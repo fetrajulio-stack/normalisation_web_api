@@ -460,16 +460,18 @@ public function importMdb(Request $request)
     /***********************************TRANFORMATION ET FORMATAGE****************** */
     if($systemExploitation === 'Windows'){
          $tMap = [
-            "Fichier" => "N_LOT",
-            "tiff"    => "N_IMA",
-            "xOrdre"  => "N_ENR",
-        ];
+    "Nom et Prénoms" => "nom_et_prenoms",
+    "Tiff" => "n_ima",
+    "Fichier" => "n_lot",
+    "xOrdre" => "n_enr",
+];
     }else{
             $tMap = [
-                "fichier" => "N_LOT",
-                "Tiff"    => "N_IMA",
-                "xOrdre"  => "N_ENR",
-            ];
+    "Nom et Prénoms" => "nom_et_prenoms",
+    "Tiff" => "n_ima",
+    "Fichier" => "n_lot",
+    "xOrdre" => "n_enr",
+];
     }
    
     
@@ -477,7 +479,8 @@ public function importMdb(Request $request)
         "N_ENR" => fn($v) => sprintf('%04d', (int)$v),
     ];
 
-    $tMysqlSourceFields = self::getMysqlSourceFields();
+    //$tMysqlSourceFields = self::getMysqlSourceFields();
+    $tMysqlSourceFields = array_map('strtolower', self::getMysqlSourceFields());
 
     if ($useIndexation) {
         $tMysqlSourceFields[] = 'nom_fichier_indexe';
@@ -520,13 +523,20 @@ public function importMdb(Request $request)
                 $teste = [];
                 foreach ($rowsToProcess as $row) {
                     
+                    \Log::info('MYSQL FIELDS', $tMysqlSourceFields);
                     // 1. Filtrage et Normalisation initiale
                     $filtered = $this->tabFilter->filterAndNormalize(
                         self::getNewDataFormat($row, $regleFormat, $tMap),
                         $tMysqlSourceFields
                     );
 
-                    //dd([$filtered,$row,$regleFormat,$tMap]);
+                    // 🔥 normalisation forcée des clés finales
+                    $filtered = array_change_key_case($filtered, CASE_LOWER);
+
+                    \Log::info('TEST NOM PRENOMS', [
+    'row' => $row,
+    'mapped' => $this->getNewDataFormat($row, $regleFormat, $tMap)
+]);
 
                     //dd([$rowsToProcess,$row,$filtered]);
                     // 2. Mapping des libellés (si activé)
@@ -737,14 +747,14 @@ public function importMdb(Request $request)
         $result = [];
 
         foreach ($tData as $key => $value) {
-            $key = self::normalizeKey($key);
-
+            /**$key = self::normalizeKey($key);
             $newKey = $map[$key] ?? $key;
 
             if (isset($regleFormat[$newKey])) {
                 $value = $regleFormat[$newKey]($value);
-            }
-
+            }*/
+        // 🔥 DEBUG TEMPORAIRE : ne pas normaliser
+        $newKey = $map[$key] ?? $key;
             $result[$newKey] = $value;
         }
        // dd($result);
@@ -978,15 +988,30 @@ public function importMdb(Request $request)
                 ]);
 
 
-                //2.Construire mapping INDEX (N_LOT → NOM_FICHIER_INDEXE)
+                //2.Construire mapping INDEX (N_IMA → NOM_FICHIER_INDEXE)
                 $indexMap = [];
                 foreach ($rowsForExportIndexed as $row) {
 
                     /*if (!empty($row['N_LOT']) && !empty($row['NOM_FICHIER_INDEXE'])) {
                         $indexMap[$row['N_LOT']] = $row['NOM_FICHIER_INDEXE'];
                     }*/
-                    $nLot = $row['n_lot'] ?? null;
+                    //$nLot = $row['n_lot'] ?? null;
+
+                    //04-06-2026 modification pour prendre en compte le fait que la clé du lot peut être différente selon les consignes d'indexation (ex: STEFI MEDIAMETRIE)
+                    //$nLot = $row['n_ima'] ?? null;
+                    //$nomIndexe = $row['nom_fichier_indexe'] ?? null;
+
+                    $nLot = !empty($row['n_ima'])
+                        ? pathinfo($row['n_ima'], PATHINFO_FILENAME)
+                        : null;
+
                     $nomIndexe = $row['nom_fichier_indexe'] ?? null;
+
+                    if (!empty($nLot) && !empty($nomIndexe)) {
+                        $indexMap[$nLot] = $nomIndexe;
+                    }
+
+
 
                     if (!empty($nLot) && !empty($nomIndexe)) {
                         $indexMap[$nLot] = $nomIndexe;
@@ -1000,7 +1025,8 @@ public function importMdb(Request $request)
 
                     $filename = basename($pdfPath);
                     
-                    /*$nLot = explode('_', $filename)[0];
+                    $nLot = explode('_', $filename)[0];
+                    
                     if (!isset($indexMap[$nLot])) {
                         continue;
                     }
@@ -1016,24 +1042,14 @@ public function importMdb(Request $request)
                     }
 
                     \File::move($oldFull, $newFull);
-                    \Log::info('PDF SEARCH ROOT', [
-                'exists' => is_dir(storage_path("app/fichier_indexe")),
-                'dirs' => scandir(storage_path("app/fichier_indexe")),
-            ]);
-                    \Log::info('PDF RENAMING', [
-                        'old' => $pdfPath,
-                        'new' => $newPath,
-                        'exists_old' => file_exists($oldFull),
-                        'exists_new' => file_exists($newFull)
-                    ]);*/
-
-                    // 🔥 clé réelle du fichier = nom sans extension
+                    /* // 🔥 clé réelle du fichier = nom sans extension
                     $fileKey = pathinfo($filename, PATHINFO_FILENAME);
 
                     // 🔍 on cherche directement dans le mapping
                     if (!isset($indexMap[$fileKey])) {
                         continue;
                     }
+                    */
                     $newName = $indexMap[$fileKey]; // ex: "1.pdf"
                     $oldFull = storage_path("app/" . $pdfPath);
                     $newPath = "fichier_indexe/{$codeDossier}/" . $newName;
@@ -1522,32 +1538,14 @@ public function importMdb(Request $request)
 
     public function normalizeKey($key)
     {
-        // 🔥 1. supprimer le b" au début
-        $key = preg_replace('/^b"/', '', $key);
+        $key = trim($key);
+        $key = mb_strtolower($key, 'UTF-8');
 
-        // 🔥 2. supprimer le " à la fin
-        $key = trim($key, '"');
+        // suppression accents propre
+        $key = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $key);
 
-        // 🔥 3. corriger encodage
-        $key = mb_convert_encoding($key, 'UTF-8', 'Windows-1252');
-
-        // 🔥 4. enlever accents (SAFE)
-        /*$key = @transliterator_transliterate(
-            'Any-Latin; Latin-ASCII',
-            $key
-        );*/
-
-        $key = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $key);
-
-        // 🔥 fallback si transliterator échoue
-        if (!$key) {
-            $key = iconv('UTF-8', 'ASCII//IGNORE', $key);
-        }
-
-        // 🔥 5. nettoyage final
-      ///  $key = strtolower($key);
-        ///$key = str_replace([' ', '-', '.'], '_', $key);
-      ///  $key = preg_replace('/[^a-z0-9_]/', '', $key);
+        // ⚠️ IMPORTANT : NE PAS créer de "_" partout
+        $key = preg_replace('/[^a-z0-9]+/', '', $key);
 
         return $key;
     }
