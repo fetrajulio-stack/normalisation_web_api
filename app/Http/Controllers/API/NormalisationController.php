@@ -923,23 +923,17 @@ public function importMdb(Request $request)
             ];
 
             if ($hasIndexation) {
-
-                $rowsForExportIndexed = [];
-
+                $rowsForExportIndexed =  [];
                 foreach ($rowsForExport as $row) {
                     $rowIndexed = $row;
-
                     foreach ($indexationConsignes as $consigne) {
 
                         $handler = $executor->getHandler($consigne->code);
-
                         // Regrouper TOUS les champs de TOUS les groupes
                         $champs = [];
 
                         foreach ($consigne->groupes as $groupe) {
-
                             foreach ($groupe->champs as $gc) {
-
                                 $champs[$gc->champ->id] =
                                     strtolower($gc->champ->nom_champ);
                             }
@@ -947,13 +941,10 @@ public function importMdb(Request $request)
 
                         // Paramètres de la consigne
                         $parametres = [];
-
                         foreach ($consigne->parametres as $param) {
-
                             if ($param->codification_id != $codification_id) {
                                 continue;
                             }
-
                             $parametres[$param->champ_id][] = [
                                 'cle'    => $param->cle,
                                 'valeur' => $param->valeur
@@ -966,7 +957,6 @@ public function importMdb(Request $request)
                             $parametres
                         );
                     }
-
                     $rowsForExportIndexed[] = $rowIndexed;
                 }
 
@@ -979,7 +969,6 @@ public function importMdb(Request $request)
                         unset($row['nom_fichier_indexe']);
                         $row['nom_fichier_indexe'] = $value;
                     }
-
                     return $row;
                 }, $rowsForExportIndexed);
 
@@ -988,116 +977,59 @@ public function importMdb(Request $request)
                     $indexedFilePath,
                     'public'
                 );
-
-                //$pdfs = \Storage::disk('local')->files("fichier_indexe/{$dossier}/{$codeDossier}");
                 $pdfs = \Storage::disk('local')->allFiles("fichier_indexe/{$dossier}/{$codeDossier}");
-                \Log::info('PDF FOUND', [
-                    'path' => "fichier_indexe/{$dossier}/{$codeDossier}",
-                    'files' => $pdfs
-                ]);
-
-
+                //dd($pdfs);
+                
                 //2.Construire mapping INDEX (N_IMA → NOM_FICHIER_INDEXE)
                 $indexMap = [];
                 foreach ($rowsForExportIndexed as $row) {
-
-                    /*if (!empty($row['N_LOT']) && !empty($row['NOM_FICHIER_INDEXE'])) {
-                        $indexMap[$row['N_LOT']] = $row['NOM_FICHIER_INDEXE'];
-                    }*/
+                    
                     //$nLot = $row['n_lot'] ?? null;
-
-                    //04-06-2026 modification pour prendre en compte le fait que la clé du lot peut être différente selon les consignes d'indexation (ex: STEFI MEDIAMETRIE)
-                    //$nLot = $row['n_ima'] ?? null;
-                    //$nomIndexe = $row['nom_fichier_indexe'] ?? null;
-
-                    $nLot = !empty($row['n_ima'])
+                    $nIma = !empty($row['n_ima'])
                         ? pathinfo($row['n_ima'], PATHINFO_FILENAME)
                         : null;
 
                     $nomIndexe = $row['nom_fichier_indexe'] ?? null;
-
-                    if (!empty($nLot) && !empty($nomIndexe)) {
-                        $indexMap[$nLot] = $nomIndexe;
+                    if (!empty($nIma) && !empty($nomIndexe)) {
+                        $indexMap[$nIma] = $nomIndexe;
                     }
 
-
-
-                    if (!empty($nLot) && !empty($nomIndexe)) {
-                        $indexMap[$nLot] = $nomIndexe;
-                    }    
-
-                    \Log::info('INDEX MAP FINAL', $indexMap);
-                }
-
-                //3.RENOMMAGE DES PDF
-                foreach ($pdfs as $pdfPath) {
-
-                    $filename = basename($pdfPath);
-                    
-                    $nLot = explode('_', $filename)[0];
-                    
-                    if (!isset($indexMap[$nLot])) {
-                        continue;
-                    }
-                    $newName = $nLot . '_' . $indexMap[$nLot] . '.pdf';
-                    
-                    $oldFull = storage_path("app/" . $pdfPath);
-
+                    $newName = $indexMap[$nIma];
                     $newPath = "fichier_indexe/{$codeDossier}/" . $newName;
                     $newFull = storage_path("app/" . $newPath);
-
-                    if (!file_exists(dirname($newFull))) {
-                        mkdir(dirname($newFull), 0777, true);
-                    }
-
-                    \File::move($oldFull, $newFull);
-                    /* // 🔥 clé réelle du fichier = nom sans extension
-                    $fileKey = pathinfo($filename, PATHINFO_FILENAME);
-
-                    // 🔍 on cherche directement dans le mapping
-                    if (!isset($indexMap[$fileKey])) {
-                        continue;
-                    }
-                    */
-                    $newName = $indexMap[$fileKey]; // ex: "1.pdf"
-                    $oldFull = storage_path("app/" . $pdfPath);
-                    $newPath = "fichier_indexe/{$codeDossier}/" . $newName;
-                    $newFull = storage_path("app/" . $newPath);
+                    
                     // créer dossier si besoin
                     if (!file_exists(dirname($newFull))) {
+
                         mkdir(dirname($newFull), 0777, true);
                     }
 
-                    \File::move($oldFull, $newFull);
+                     //3.RENOMMAGE DES PDF
+                    foreach ($pdfs as $pdfPath) {
 
-                    \Log::info('PDF RENAMED OK', [
-                        'from' => $filename,
-                        'to' => $newName
-                    ]);
-
+                        $filename = basename($pdfPath);
+                        $oldFull = storage_path("app/" . $pdfPath);
+                        \File::copy($oldFull, $newFull);
+                    }
                 }
-
+                
                 // 4. ZIP après renommage
                     $zipName = $codeDossier . '_documents.zip';
                     $zipPath = storage_path("app/public/Exports/" . $zipName);
-
                     $zip = new \ZipArchive;
-
                     if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
                         throw new \Exception("Impossible d'ouvrir ZIP");
                     }
 
                     // 🔍 récupération globale
                     $allFiles = \Storage::disk('local')->allFiles("fichier_indexe");
-
+                    
                     // 🔥 filtrage robuste
                     $files = collect($allFiles)
                         ->filter(function ($file) use ($codeDossier) {
-
                             $file = str_replace('\\', '/', $file);
-
                             return str_contains($file, $codeDossier)
-                                && str_ends_with($file, '.pdf');
+                            && str_ends_with($file, '.pdf');
                         })
                         ->values();
 
@@ -1109,12 +1041,9 @@ public function importMdb(Request $request)
                             $zip->addFile($fullPath, basename($file));
                         }
                     }
-
                     $zip->close();
-                
-                    
+                 
                 //5. Ajouter l'URL de téléchargement du ZIP dans la réponse
-                
                 $response['zip_url'] = $zipName;
                 
                 // $response['indexed_url'] = $indexedFilePath;
