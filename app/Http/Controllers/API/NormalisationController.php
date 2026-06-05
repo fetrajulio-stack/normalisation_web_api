@@ -459,24 +459,24 @@ public function importMdb(Request $request)
 
     /***********************************TRANFORMATION ET FORMATAGE****************** */
     if($systemExploitation === 'Windows'){
-         $tMap = [
-    "Nom et Prénoms" => "nom_et_prenoms",
-    "Tiff" => "n_ima",
-    "Fichier" => "n_lot",
-    "xOrdre" => "n_enr",
-];
+        $tMap = [
+            'nom et prnoms' => 'nom_et_prenoms',
+            'tiff'          => 'n_ima',
+            'fichier'       => 'n_lot',
+            'xordre'        => 'n_enr',
+        ];
     }else{
-            $tMap = [
-    "Nom et Prénoms" => "nom_et_prenoms",
-    "Tiff" => "n_ima",
-    "Fichier" => "n_lot",
-    "xOrdre" => "n_enr",
-];
+        $tMap = [
+            "Nom et Prénoms" => "nom_et_prenoms",
+            "Tiff" => "n_ima",
+            "Fichier" => "n_lot",
+            "xOrdre" => "n_enr",
+        ];
     }
    
     
     $regleFormat = [
-        "N_ENR" => fn($v) => sprintf('%04d', (int)$v),
+        "n_enr" => fn($v) => sprintf('%04d', (int)$v),
     ];
 
     //$tMysqlSourceFields = self::getMysqlSourceFields();
@@ -524,6 +524,7 @@ public function importMdb(Request $request)
                 foreach ($rowsToProcess as $row) {
                     
                     \Log::info('MYSQL FIELDS', $tMysqlSourceFields);
+
                     // 1. Filtrage et Normalisation initiale
                     $filtered = $this->tabFilter->filterAndNormalize(
                         self::getNewDataFormat($row, $regleFormat, $tMap),
@@ -534,11 +535,9 @@ public function importMdb(Request $request)
                     $filtered = array_change_key_case($filtered, CASE_LOWER);
 
                     \Log::info('TEST NOM PRENOMS', [
-    'row' => $row,
-    'mapped' => $this->getNewDataFormat($row, $regleFormat, $tMap)
-]);
-
-                    //dd([$rowsToProcess,$row,$filtered]);
+                        'mapped' => $this->getNewDataFormat($row, $regleFormat, $tMap)
+                    ]);
+                    
                     // 2. Mapping des libellés (si activé)
                     if ($useLibelle) {
                         $filtered = $this->applyLibelleMapping($filtered, $listeChoixMap);
@@ -747,17 +746,27 @@ public function importMdb(Request $request)
         $result = [];
 
         foreach ($tData as $key => $value) {
-            /**$key = self::normalizeKey($key);
-            $newKey = $map[$key] ?? $key;
+         \Log::info('CLE ACCESS', [
+        'key' => $key,
+        'hex' => bin2hex($key)
+        ]);
 
-            if (isset($regleFormat[$newKey])) {
-                $value = $regleFormat[$newKey]($value);
-            }*/
-        // 🔥 DEBUG TEMPORAIRE : ne pas normaliser
-        $newKey = $map[$key] ?? $key;
-            $result[$newKey] = $value;
+        $normalizedKey = $this->normalizeKey($key);
+        $newKey = $map[$normalizedKey] ?? $normalizedKey;
+        $result[$newKey] = $value;
+
+        if (isset($regleFormat[$newKey])) {
+            $value = $regleFormat[$newKey]($value);
         }
-       // dd($result);
+
+        \Log::info('MAPPING', [
+            'original'   => $key,
+            'normalized' => $normalizedKey,
+            'newKey'     => $newKey
+        ]);
+
+        
+        }
         return $result;
     }
 
@@ -1536,18 +1545,13 @@ public function importMdb(Request $request)
         return response()->download($path);
     }
 
-    public function normalizeKey($key)
+    private function normalizeKey($key)
     {
         $key = trim($key);
-        $key = mb_strtolower($key, 'UTF-8');
 
-        // suppression accents propre
         $key = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $key);
 
-        // ⚠️ IMPORTANT : NE PAS créer de "_" partout
-        $key = preg_replace('/[^a-z0-9]+/', '', $key);
-
-        return $key;
+        return strtolower($key);
     }
 
     public function getListeChoix(Request $request)
