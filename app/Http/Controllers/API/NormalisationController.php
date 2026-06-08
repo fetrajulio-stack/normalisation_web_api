@@ -977,77 +977,129 @@ public function importMdb(Request $request)
                     $indexedFilePath,
                     'public'
                 );
-                $pdfs = \Storage::disk('local')->allFiles("fichier_indexe/{$dossier}/{$codeDossier}");
-                //dd($pdfs);
-                
-                //2.Construire mapping INDEX (N_IMA → NOM_FICHIER_INDEXE)
+
+                // =====================================================
+                // COPIE + RENOMMAGE DES DOCUMENTS
+                // =====================================================
+
+                // Récupération des documents source
+                $pdfs = \Storage::disk('local')
+                    ->allFiles("fichier_indexe/{$dossier}/{$codeDossier}");
+
+                // Construction du mapping N_IMA => NOM_FICHIER_INDEXE
                 $indexMap = [];
+
                 foreach ($rowsForExportIndexed as $row) {
-                    
-                    //$nLot = $row['n_lot'] ?? null;
+
                     $nIma = !empty($row['n_ima'])
                         ? pathinfo($row['n_ima'], PATHINFO_FILENAME)
                         : null;
 
                     $nomIndexe = $row['nom_fichier_indexe'] ?? null;
+
                     if (!empty($nIma) && !empty($nomIndexe)) {
                         $indexMap[$nIma] = $nomIndexe;
                     }
+                }
 
-                    $newName = $indexMap[$nIma];
-                    $newPath = "fichier_indexe/{$codeDossier}/" . $newName;
-                    $newFull = storage_path("app/" . $newPath);
-                    
-                    // créer dossier si besoin
-                    if (!file_exists(dirname($newFull))) {
+                // Dossier destination
+                $destinationDir = "fichier_indexe/{$codeDossier}";
 
-                        mkdir(dirname($newFull), 0777, true);
+                if (!\Storage::disk('local')->exists($destinationDir)) {
+                    \Storage::disk('local')->makeDirectory($destinationDir);
+                }
+
+                // Copie + renommage
+                foreach ($pdfs as $pdfPath) {
+
+                    $filename = basename($pdfPath);
+
+                    $nIma = pathinfo($filename, PATHINFO_FILENAME);
+
+                    if (!isset($indexMap[$nIma])) {
+                        continue;
                     }
 
-                     //3.RENOMMAGE DES PDF
-                    foreach ($pdfs as $pdfPath) {
+                    $newName = trim($indexMap[$nIma]);
 
-                        $filename = basename($pdfPath);
-                        $oldFull = storage_path("app/" . $pdfPath);
-                        \File::copy($oldFull, $newFull);
+                    if ($newName === '') {
+                        continue;
+                    }
+
+                    // Forcer extension PDF
+                    $pathInfo = pathinfo($newName);
+
+                    $baseName = $pathInfo['filename'];
+
+                    $extension = 'pdf';
+
+                    $finalName = $baseName . '.' . $extension;
+
+                    // Gestion des doublons
+                    $counter = 1;
+
+                    while (
+                        \Storage::disk('local')
+                            ->exists($destinationDir . '/' . $finalName)
+                    ) {
+                        $finalName = $baseName . '_' . $counter . '.' . $extension;
+                        $counter++;
+                    }
+
+                    $sourceFullPath = storage_path('app/' . $pdfPath);
+
+                    $destinationFullPath = storage_path(
+                        'app/' . $destinationDir . '/' . $finalName
+                    );
+
+                    \File::copy($sourceFullPath, $destinationFullPath);
+                }
+
+                // =====================================================
+                // CREATION DU ZIP
+                // =====================================================
+
+                $zipName = $codeDossier . '_documents.zip';
+
+                if (\Storage::disk('public')->exists('Exports/' . $zipName)) {
+                    \Storage::disk('public')->delete('Exports/' . $zipName);
+                }
+
+                $zipPath = storage_path('app/public/Exports/' . $zipName);
+
+                $zip = new \ZipArchive();
+
+                if (
+                    $zip->open(
+                        $zipPath,
+                        \ZipArchive::CREATE | \ZipArchive::OVERWRITE
+                    ) !== true
+                ) {
+                    throw new \Exception("Impossible de créer le ZIP");
+                }
+
+                // Seulement les fichiers renommés
+                $filesToZip = \Storage::disk('local')
+                    ->allFiles($destinationDir);
+
+                foreach ($filesToZip as $file) {
+
+                    $fullPath = storage_path('app/' . $file);
+
+                    if (file_exists($fullPath)) {
+                        $zip->addFile($fullPath, basename($file));
                     }
                 }
-                
-                // 4. ZIP après renommage
-                    $zipName = $codeDossier . '_documents.zip';
-                    $zipPath = storage_path("app/public/Exports/" . $zipName);
-                    $zip = new \ZipArchive;
-                    if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
-                        throw new \Exception("Impossible d'ouvrir ZIP");
-                    }
 
-                    // 🔍 récupération globale
-                    $allFiles = \Storage::disk('local')->allFiles("fichier_indexe");
-                    
-                    // 🔥 filtrage robuste
-                    $files = collect($allFiles)
-                        ->filter(function ($file) use ($codeDossier) {
-                            $file = str_replace('\\', '/', $file);
-                            return str_contains($file, $codeDossier)
-                            && str_ends_with($file, '.pdf');
-                        })
-                        ->values();
+                $zip->close();
 
-                    foreach ($files as $file) {
+                // =====================================================
+                // URL ZIP
+                // =====================================================
 
-                        $fullPath = storage_path("app/" . $file);
-
-                        if (file_exists($fullPath)) {
-                            $zip->addFile($fullPath, basename($file));
-                        }
-                    }
-                    $zip->close();
-                 
-                //5. Ajouter l'URL de téléchargement du ZIP dans la réponse
                 $response['zip_url'] = $zipName;
-                
-                // $response['indexed_url'] = $indexedFilePath;
                 $response['indexed_filename'] = $codeDossier . '_indexe.xlsx';
+
             }
 
             return response()->json($response);
@@ -1770,7 +1822,58 @@ private function insertBatchSafely(array $batch)
             ], 404);
         }
 
-        return response()->download($path);
+        // Exemple :
+        // LOT001_documents.zip => LOT001
+        $codeDossier = preg_replace(
+            '/_documents\.zip$/i',
+            '',
+            $filename
+        );
+
+        // Recherche de la codification pour récupérer le dossier source
+        $codification = \App\Models\Codification::where(
+            'code_dossier',
+            $codeDossier
+        )->first();
+
+        register_shutdown_function(function () use ($codeDossier, $codification) {
+
+            try {
+
+                // =====================================================
+                // 1. Suppression du dossier temporaire contenant
+                // les fichiers renommés
+                // =====================================================
+                \Storage::disk('local')->deleteDirectory(
+                    "fichier_indexe/{$codeDossier}"
+                );
+
+                // =====================================================
+                // 2. Suppression du dossier source contenant
+                // les originaux
+                // =====================================================
+                if ($codification && !empty($codification->dossier)) {
+
+                    \Storage::disk('local')->deleteDirectory(
+                        "fichier_indexe/{$codification->dossier}/{$codeDossier}"
+                    );
+                }
+
+            } catch (\Exception $e) {
+
+                \Log::error(
+                    'Erreur suppression après téléchargement ZIP',
+                    [
+                        'code_dossier' => $codeDossier,
+                        'message' => $e->getMessage()
+                    ]
+                );
+            }
+        });
+
+        return response()
+            ->download($path)
+            ->deleteFileAfterSend(true);
     }
 
 }
