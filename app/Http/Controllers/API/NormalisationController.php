@@ -534,6 +534,14 @@ public function importMdb(Request $request)
                     // 🔥 normalisation forcée des clés finales
                     $filtered = array_change_key_case($filtered, CASE_LOWER);
 
+                    // questionnaire_2 = même valeur que n_enr
+                    if (
+                        in_array('questionnaire_2', $tMysqlSourceFields) &&
+                        isset($filtered['n_enr'])
+                    ) {
+                        $filtered['questionnaire_2'] = sprintf('%04d', (int)$filtered['n_enr']);
+                    }
+
                     \Log::info('TEST NOM PRENOMS', [
                         'mapped' => $this->getNewDataFormat($row, $regleFormat, $tMap)
                     ]);
