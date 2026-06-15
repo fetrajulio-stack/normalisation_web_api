@@ -468,7 +468,9 @@ public function importMdb(Request $request)
     }else{
         $tMap = [
             "Nom et Prénoms" => "nom_et_prenoms",
+            'nom et prnoms' => 'nom_et_prenoms',
             "Tiff" => "n_ima",
+            "tiff" => "n_ima",
             "Fichier" => "n_lot",
             'fichier'       => 'n_lot',
             "xOrdre" => "n_enr",
