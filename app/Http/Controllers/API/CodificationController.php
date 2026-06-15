@@ -113,7 +113,9 @@ class CodificationController extends Controller
            $sourceRows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
            // dd($sourceRows);
         }else{
+            $sql = "SELECT idq FROM LIVRAISON";
            $rawRows = AccessService::query($zCheminParametreMdb, $sql);
+           dd($rawRows,$sql);
            foreach ($rawRows as $row) {
                 // Comme on a sélectionné uniquement 'idq', chaque ligne est la valeur de idq
                 $sourceRows[] = ['idq' => trim($row)];
