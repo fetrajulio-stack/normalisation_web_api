@@ -115,7 +115,7 @@ class CodificationController extends Controller
         }else{
             $sql = "SELECT idq FROM LIVRAISON";
            $rawRows = AccessService::query($zCheminParametreMdb, $sql);
-           dd($rawRows,$sql);
+           //dd($rawRows,$sql);
            foreach ($rawRows as $row) {
                 // Comme on a sélectionné uniquement 'idq', chaque ligne est la valeur de idq
                 $sourceRows[] = ['idq' => trim($row)];
