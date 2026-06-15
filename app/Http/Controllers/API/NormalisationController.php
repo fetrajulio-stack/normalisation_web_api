@@ -472,6 +472,7 @@ public function importMdb(Request $request)
             "Fichier" => "n_lot",
             'fichier'       => 'n_lot',
             "xOrdre" => "n_enr",
+            'xordre'        => 'n_enr',
         ];
     }
    
