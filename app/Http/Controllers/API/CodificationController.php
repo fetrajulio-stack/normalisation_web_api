@@ -122,10 +122,7 @@ class CodificationController extends Controller
                 $sourceRows[] = ['idq' => trim($row)];
             }
         }
-       
-        
-            
-        /**FIN: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */
+        dd($sourceRows);
 
         $sourceRows = $this->encodingService->utf8EncodeRecursive($sourceRows);
 
