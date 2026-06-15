@@ -521,6 +521,7 @@ public function importMdb(Request $request)
                 // dd([$rowsToProcess,$filePath,$systemExploitation]);
                 // === TRAITEMENT UNIFIE (Identique pour Windows et Linux) ===
                 $teste = [];
+                dd($rowsToProcess,$regleFormat,$tMap);
                 foreach ($rowsToProcess as $row) {
                     
                     \Log::info('MYSQL FIELDS', $tMysqlSourceFields);
