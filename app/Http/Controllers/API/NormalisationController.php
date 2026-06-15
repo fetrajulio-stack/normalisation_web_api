@@ -934,7 +934,6 @@ if (
 
         }, $rowsForExport);
         
-        dd($rowsForExport);
         // 5. Export en Excel
             // =====================================================
             // EXPORT NORMAL
