@@ -118,6 +118,7 @@ class CodificationController extends Controller
            //dd($rawRows,$sql);
            foreach ($rawRows as $row) {
                 // Comme on a sélectionné uniquement 'idq', chaque ligne est la valeur de idq
+                if($row === null || $row === "") continue; // Ignorer les valeurs nulles
                 $sourceRows[] = ['idq' => trim($row)];
             }
         }
