@@ -118,7 +118,7 @@ class CodificationController extends Controller
            //dd($rawRows,$sql);
            foreach ($rawRows as $row) {
                 // Comme on a sélectionné uniquement 'idq', chaque ligne est la valeur de idq
-                if($row === null || $row === "" || str_contains(trim($row), '_rows_retrieved')) continue; // Ignorer les valeurs nulles
+                if($row === null || $row === "" || stripos(trim($row), 'rows_retrieved') !== false) continue; // Ignorer les valeurs nulles
                 $sourceRows[] = ['idq' => trim($row)];
             }
         }
@@ -127,7 +127,6 @@ class CodificationController extends Controller
         $sourceRows = $this->encodingService->utf8EncodeRecursive($sourceRows);
 
         foreach ($sourceRows as &$item) {
-            if(str_contains($this->normalizer->normalizeFieldName($item['idq']), '_rows_retrieved')) continue; 
             $item['idq'] = $this->normalizer->normalizeFieldName($item['idq']);
         }
 
