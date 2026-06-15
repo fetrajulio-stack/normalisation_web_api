@@ -127,9 +127,10 @@ class CodificationController extends Controller
         $sourceRows = $this->encodingService->utf8EncodeRecursive($sourceRows);
 
         foreach ($sourceRows as &$item) {
+            if(str_contains($this->normalizer->normalizeFieldName($item['idq']), '_rows_retrieved')) continue; 
             $item['idq'] = $this->normalizer->normalizeFieldName($item['idq']);
         }
-        dd($sourceRows);
+
         return response()->json($sourceRows);
     }
 
