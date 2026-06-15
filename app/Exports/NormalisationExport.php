@@ -76,14 +76,40 @@ class NormalisationExport implements FromArray, WithHeadings
             $valeurEnr = str_pad($compteur, 4, '0', STR_PAD_LEFT);
             $cleEnrTrouvee = false;
 
-            foreach ($ligne as $key => $value) {
+            /*foreach ($ligne as $key => $value) {
                 // Si la clé est N_ENR (ou son nom mappé comme PATATE)
                 if (strtoupper($key) === 'N_ENR' || strtoupper($key) === 'PATATE') {
                     $ligne[$key] = $valeurEnr; // On écrase la valeur au même endroit
                     $cleEnrTrouvee = true;
                     break;
                 }
-            }
+            }*/
+//Si le champ questionnaire_2 existe, on conserve la valeur de N_ENR provenant de la base, sinon on écrase avec la valeur générée
+            foreach ($ligne as $key => $value) {
+                if (strtoupper($key) === 'N_ENR' || strtoupper($key) === 'PATATE') {
+
+                    // Si questionnaire_2 existe, conserver la valeur de N_ENR provenant de la base
+                    if (
+                        array_key_exists('questionnaire_2', $ligne) ||
+                        array_key_exists('QUESTIONNAIRE_2', $ligne)
+                    ) {
+
+                        $ligne[$key] = sprintf(
+                            '%04d',
+                            (int)$ligne[$key]
+                        );
+
+                    } else {
+
+                        // Comportement historique
+                        $ligne[$key] = $valeurEnr;
+                    }
+
+                    $cleEnrTrouvee = true;
+                    break;
+                }
+        }    
+
 
             // Si vraiment aucune colonne N_ENR n'existe, on la crée (comportement par défaut)
             if (!$cleEnrTrouvee) {
