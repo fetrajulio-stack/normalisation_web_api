@@ -470,6 +470,7 @@ public function importMdb(Request $request)
             "Nom et Prénoms" => "nom_et_prenoms",
             "Tiff" => "n_ima",
             "Fichier" => "n_lot",
+            'fichier'       => 'n_lot',
             "xOrdre" => "n_enr",
         ];
     }
@@ -521,7 +522,7 @@ public function importMdb(Request $request)
                 // dd([$rowsToProcess,$filePath,$systemExploitation]);
                 // === TRAITEMENT UNIFIE (Identique pour Windows et Linux) ===
                 $teste = [];
-                dd($rowsToProcess,$regleFormat,$tMap);
+                //dd($rowsToProcess,$regleFormat,$tMap);
                 foreach ($rowsToProcess as $row) {
                     
                     \Log::info('MYSQL FIELDS', $tMysqlSourceFields);
