@@ -96,11 +96,11 @@ class CodificationController extends Controller
         // Détection dynamique
         $orderBy = null;
 
-        /*if (in_array('ordreq', $columns)) {
+        if (in_array('ordreq', $columns)) {
             $orderBy = 'ordreq';
         } elseif (in_array('ordref', $columns)) {
             $orderBy = 'ordref';
-        }*/
+        }
         $sourceRows = [];
         // Construction SQL
         $sql = "SELECT [idq] FROM [LIVRAISON]";
