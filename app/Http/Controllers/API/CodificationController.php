@@ -126,18 +126,18 @@ class CodificationController extends Controller
            $sql = "SELECT idq, $orderBy FROM LIVRAISON";
             $rawRows = AccessService::query($zCheminParametreMdb, $sql);
 
-            dd($rawRows);
             // 1. Nettoyer et récupérer uniquement les vraies lignes de données
             $validRows = [];
             foreach ($rawRows as $row) {
-                if ($row['idq'] === null || $row['idq'] === "") continue; // Ignorer les null/vides
+                if ($row === null || $row === "") continue; // Ignorer les null/vides
                 
                 // Ignorer les messages de log (ex: retour de mdb-tools)
-                if (stripos(trim($row['idq']), 'Rows retrieved') !== false) {
+                if (stripos(trim($row), 'Rows retrieved') !== false) {
                     continue;
                 }
-                $validRows[] = $row['idq'];
+                $validRows[] = $row;
             }
+            dd($validRows, $orderBy);
 
             // 2. Trier le tableau en PHP par la colonne $orderBy (Ordre Ascendant)
             usort($validRows, function($a, $b) use ($orderBy) {
