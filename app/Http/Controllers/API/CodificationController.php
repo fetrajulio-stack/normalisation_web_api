@@ -113,7 +113,7 @@ class CodificationController extends Controller
            $sourceRows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
            // dd($sourceRows);
         }else{
-            $sql = "SELECT idq, $orderBy FROM LIVRAISON";
+           /* $sql = "SELECT idq, $orderBy FROM LIVRAISON";
             
            $rawRows = AccessService::query($zCheminParametreMdb, $sql);
            //dd($rawRows,$sql);
@@ -121,6 +121,39 @@ class CodificationController extends Controller
                 // Comme on a sélectionné uniquement 'idq', chaque ligne est la valeur de idq
                 if($row === null || $row === "" || stripos(trim($row), 'Rows retrieved') !== false) continue; // Ignorer les valeurs nulles
                 $sourceRows[] = ['idq' => trim($row)];
+            }*/
+
+            $sql = "SELECT idq, $orderBy FROM LIVRAISON";
+            $rawRows = AccessService::query($zCheminParametreMdb, $sql);
+
+            // 1. Nettoyer et récupérer uniquement les vraies lignes de données
+            $validRows = [];
+            foreach ($rawRows as $row) {
+                if ($row === null || $row === "") continue; // Ignorer les null/vides
+                
+                // Ignorer les messages de log (ex: retour de mdb-tools)
+                if (stripos(trim($row), 'Rows retrieved') !== false) {
+                    continue;
+                }
+                $validRows[] = $row;
+            }
+
+            // 2. Trier le tableau en PHP par la colonne $orderBy (Ordre Ascendant)
+            usort($validRows, function($a, $b) use ($orderBy) {
+                // S'adapte selon si ton service retourne des tableaux associatifs ou des objets
+                $valA = is_array($a) ? ($a[$orderBy] ?? '') : ($a->$orderBy ?? '');
+                $valB = is_array($b) ? ($b[$orderBy] ?? '') : ($b->$orderBy ?? '');
+                
+                return $valA <=> $valB; // L'opérateur <=> gère le tri ascendant
+            });
+
+            // 3. Construire le tableau final avec uniquement l'idq
+            $sourceRows = [];
+            foreach ($validRows as $row) {
+                // On extrait uniquement l'idq de la ligne (qu'elle soit un tableau ou un objet)
+                $idq = is_array($row) ? $row['idq'] : (is_object($row) ? $row->idq : trim($row));
+                
+                $sourceRows[] = ['idq' => $idq];
             }
         }
         
