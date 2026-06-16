@@ -123,30 +123,36 @@ class CodificationController extends Controller
                 $sourceRows[] = ['idq' => trim($row)];
             }*/
 
-           $sql = "SELECT idq, $orderBy FROM LIVRAISON";
-            $rawRows = AccessService::query($zCheminParametreMdb, $sql);
+$sql = "SELECT idq, $orderBy FROM LIVRAISON";
+$rawRows = AccessService::query($zCheminParametreMdb, $sql);
 
-            // 1. Nettoyer et récupérer uniquement les vraies lignes de données
-            $validRows = [];
-            foreach ($rawRows as $row) {
-                if ($row === null || $row === "") continue; // Ignorer les null/vides
-                
-                // Ignorer les messages de log (ex: retour de mdb-tools)
-                if (stripos(trim($row), 'Rows retrieved') !== false) {
-                    continue;
-                }
-                $validRows[] = $row;
-            }
-            dd($validRows, $orderBy);
+// 1. Nettoyer, séparer et préparer le tri
+$tempRows = [];
+foreach ($rawRows as $row) {
+    if ($row === null || $row === "") continue; // Ignorer les null/vides
+    
+    // Ignorer les messages de log (ex: retour de mdb-tools)
+    if (stripos(trim($row), 'Rows retrieved') !== false) {
+        continue;
+    }
+    
+    // Séparer la chaîne "NomDeLaQuestion||Ordre"
+    $parts = explode('||', $row);
+    
+    if (count($parts) === 2) {
+        $question = trim($parts[0]);      // "QUESTIONNAIRE", "Q1 SEXE", etc.
+        $order = (int) trim($parts[1]);   // 1, 2, 3, etc. (Cast en entier très important pour le tri)
+        
+        // On utilise l'ordre comme clé du tableau
+        $tempRows[$order] = $question;
+    }
+}
 
-            // 2. Trier le tableau en PHP par la colonne $orderBy (Ordre Ascendant)
-            usort($validRows, function($a, $b) use ($orderBy) {
-                // S'adapte selon si ton service retourne des tableaux associatifs ou des objets
-                $valA = is_array($a) ? ($a[$orderBy] ?? '') : ($a->$orderBy ?? '');
-                $valB = is_array($b) ? ($b[$orderBy] ?? '') : ($b->$orderBy ?? '');
-                
-                return $valA <=> $valB; // L'opérateur <=> gère le tri ascendant
-            });
+// 2. Trier le tableau par ses clés (l'ordre) de manière ascendante (1 -> 2 -> 3...)
+ksort($tempRows);
+
+// 3. Réindexer le tableau pour n'avoir que les valeurs (0 => Q1, 1 => Q2...)
+$validRows = array_values($tempRows);
 
             // 3. Construire le tableau final avec uniquement l'idq
             $sourceRows = [];
