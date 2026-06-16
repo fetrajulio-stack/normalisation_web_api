@@ -113,7 +113,7 @@ class CodificationController extends Controller
            $sourceRows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
            // dd($sourceRows);
         }else{
-           /* $sql = "SELECT idq, $orderBy FROM LIVRAISON";
+            $sql = "SELECT idq FROM LIVRAISON";
             
            $rawRows = AccessService::query($zCheminParametreMdb, $sql);
            //dd($rawRows,$sql);
@@ -121,9 +121,9 @@ class CodificationController extends Controller
                 // Comme on a sélectionné uniquement 'idq', chaque ligne est la valeur de idq
                 if($row === null || $row === "" || stripos(trim($row), 'Rows retrieved') !== false) continue; // Ignorer les valeurs nulles
                 $sourceRows[] = ['idq' => trim($row)];
-            }*/
+            }
 
-            $sql = "SELECT idq, $orderBy FROM LIVRAISON";
+           /* $sql = "SELECT idq, $orderBy FROM LIVRAISON";
             $rawRows = AccessService::query($zCheminParametreMdb, $sql);
 
             // 1. Nettoyer et récupérer uniquement les vraies lignes de données
@@ -154,7 +154,7 @@ class CodificationController extends Controller
                 $idq = is_array($row) ? $row['idq'] : (is_object($row) ? $row->idq : trim($row));
                 
                 $sourceRows[] = ['idq' => $idq];
-            }
+            }*/
         }
         
 
