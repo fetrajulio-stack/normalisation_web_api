@@ -126,6 +126,7 @@ class CodificationController extends Controller
            $sql = "SELECT idq, $orderBy FROM LIVRAISON";
             $rawRows = AccessService::query($zCheminParametreMdb, $sql);
 
+            dd($rawRows);
             // 1. Nettoyer et récupérer uniquement les vraies lignes de données
             $validRows = [];
             foreach ($rawRows as $row) {
