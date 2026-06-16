@@ -115,27 +115,27 @@ class CodificationController extends Controller
         }else{
             $sql = "SELECT idq FROM LIVRAISON";
             
-           $rawRows = AccessService::query($zCheminParametreMdb, $sql);
+           /*$rawRows = AccessService::query($zCheminParametreMdb, $sql);
            //dd($rawRows,$sql);
            foreach ($rawRows as $row) {
                 // Comme on a sélectionné uniquement 'idq', chaque ligne est la valeur de idq
                 if($row === null || $row === "" || stripos(trim($row), 'Rows retrieved') !== false) continue; // Ignorer les valeurs nulles
                 $sourceRows[] = ['idq' => trim($row)];
-            }
+            }*/
 
-           /* $sql = "SELECT idq, $orderBy FROM LIVRAISON";
+           $sql = "SELECT idq, $orderBy FROM LIVRAISON";
             $rawRows = AccessService::query($zCheminParametreMdb, $sql);
 
             // 1. Nettoyer et récupérer uniquement les vraies lignes de données
             $validRows = [];
             foreach ($rawRows as $row) {
-                if ($row === null || $row === "") continue; // Ignorer les null/vides
+                if ($row['idq'] === null || $row['idq'] === "") continue; // Ignorer les null/vides
                 
                 // Ignorer les messages de log (ex: retour de mdb-tools)
-                if (stripos(trim($row), 'Rows retrieved') !== false) {
+                if (stripos(trim($row['idq']), 'Rows retrieved') !== false) {
                     continue;
                 }
-                $validRows[] = $row;
+                $validRows[] = $row['idq'];
             }
 
             // 2. Trier le tableau en PHP par la colonne $orderBy (Ordre Ascendant)
@@ -154,7 +154,7 @@ class CodificationController extends Controller
                 $idq = is_array($row) ? $row['idq'] : (is_object($row) ? $row->idq : trim($row));
                 
                 $sourceRows[] = ['idq' => $idq];
-            }*/
+            }
         }
         
 
