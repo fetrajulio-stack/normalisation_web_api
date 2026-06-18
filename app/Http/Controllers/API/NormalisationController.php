@@ -324,10 +324,8 @@ class NormalisationController extends Controller
                 $table->string('nom_fichier_indexe')->nullable()->default(null);
             }
 
-            if (strtoupper(trim($zDossier)) === 'STEFI MEDIAMETRIE') {
-                $table->string('ville')->nullable()->default(null);
-                $table->string('seance')->nullable()->default(null);
-            }
+            $isVilleExisteInparametreMDB = false;
+            $isSeanceExisteInparametreMDB = false;
 
             foreach ($sourceRows as $row) {
                 // Conversion de l'encodage du nom de la colonne
@@ -343,6 +341,23 @@ class NormalisationController extends Controller
                     $table->integer($colName)->default((int)$defaultVal);
                 } else {
                     $table->text($colName)->nullable()->default(null);
+                }
+
+                if($row['idq'] === "Ville") {
+                    $isVilleExisteInparametreMDB = true;
+                }
+
+                if($row['idq'] === "Seance") {
+                    $isSeanceExisteInparametreMDB = true;
+                }
+            }
+
+            if (strtoupper(trim($zDossier)) === 'STEFI MEDIAMETRIE') {
+                if(!$isVilleExisteInparametreMDB) {
+                    $table->string('ville')->nullable()->default(null);
+                }
+                if(!$isSeanceExisteInparametreMDB) {
+                    $table->string('seance')->nullable()->default(null);
                 }
             }
 
