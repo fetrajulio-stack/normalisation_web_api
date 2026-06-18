@@ -113,22 +113,67 @@ class CodificationController extends Controller
            $sourceRows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC);
            // dd($sourceRows);
         }else{
-           $rawRows = AccessService::query($zCheminParametreMdb, $sql);
-           foreach ($rawRows as $row) {
-                // Comme on a sélectionné uniquement 'idq', chaque ligne est la valeur de idq
-                $sourceRows[] = ['idq' => trim($row)];
+            if ($orderBy) {
+                $sql = "SELECT idq, $orderBy FROM LIVRAISON";
+                $rawRows = AccessService::query($zCheminParametreMdb, $sql);
+
+                // 1. Nettoyer, séparer et préparer le tri
+                $tempRows = [];
+                foreach ($rawRows as $row) {
+                    if ($row === null || $row === "") continue; // Ignorer les null/vides
+                    
+                    // Ignorer les messages de log (ex: retour de mdb-tools)
+                    if (stripos(trim($row), 'Rows retrieved') !== false) {
+                        continue;
+                    }
+                    
+                    // Séparer la chaîne "NomDeLaQuestion||Ordre"
+                    $parts = explode('||', $row);
+                    
+                    if (count($parts) === 2) {
+                        $question = trim($parts[0]);      // "QUESTIONNAIRE", "Q1 SEXE", etc.
+                        $order = (int) trim($parts[1]);   // 1, 2, 3, etc. (Cast en entier très important pour le tri)
+                        
+                        // On utilise l'ordre comme clé du tableau
+                        $tempRows[$order] = $question;
+                    }
+                }
+
+                // 2. Trier le tableau par ses clés (l'ordre) de manière ascendante (1 -> 2 -> 3...)
+                ksort($tempRows);
+
+                // 3. Réindexer le tableau pour n'avoir que les valeurs (0 => Q1, 1 => Q2...)
+                $validRows = array_values($tempRows);
+
+                // 3. Construire le tableau final avec uniquement l'idq
+                $sourceRows = [];
+                foreach ($validRows as $row) {
+                    // On extrait uniquement l'idq de la ligne (qu'elle soit un tableau ou un objet)
+                    $idq = is_array($row) ? $row['idq'] : (is_object($row) ? $row->idq : trim($row));
+                    
+                    $sourceRows[] = ['idq' => $idq];
+                }
+            }
+            else{
+                $sql = "SELECT idq FROM LIVRAISON";
+                $rawRows = AccessService::query($zCheminParametreMdb, $sql);
+                //dd($rawRows,$sql);
+                foreach ($rawRows as $row) {
+                        // Comme on a sélectionné uniquement 'idq', chaque ligne est la valeur de idq
+                        if($row === null || $row === "" || stripos(trim($row), 'Rows retrieved') !== false) continue; // Ignorer les valeurs nulles
+                        $sourceRows[] = ['idq' => trim($row)];
+                    }
             }
         }
-       
         
-            
-        /**FIN: Quelques dossiers dans n'utilise pas "ordreq" mais "ordref" dans la table livraison */
 
         $sourceRows = $this->encodingService->utf8EncodeRecursive($sourceRows);
+        //dd($sourceRows);
 
         foreach ($sourceRows as &$item) {
             $item['idq'] = $this->normalizer->normalizeFieldName($item['idq']);
         }
+
         return response()->json($sourceRows);
     }
 
